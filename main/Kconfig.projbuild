@@ -1,0 +1,49 @@
+menu "temp_mon_small_home Configuration"
+
+    config ONE_WIRE_GPIO
+        int "ONE WIRE GPIO number"
+        range 0 48
+        default 4
+        help
+            GPIO number to ONE WIRE.
+
+    config BUTTON_GPIO
+        int "Button GPIO number"
+        range 0 48
+        default 16
+        help
+            GPIO number (IOxx) connect button for select modes of temp show and enable BackLight of screen.
+
+    config SCL_GPIO
+        int "I2C SCL GPIO number"
+        range 0 48
+        default 22
+        help
+            GPIO number (IOxx) connect I2C SCL (for connect screen 1602 - for example).
+
+    config SDA_GPIO
+        int "I2C SDA GPIO number"
+        range 0 48
+        default 21
+        help
+            GPIO number (IOxx) connect I2C SDA (for connect screen 1602 - for example).
+
+    config BACKLIGHT_TIMEOUT
+        int "Backlight screen timeout in microseconds"
+        range 0 3600000
+        default 60000
+        help
+            When button press - screen enable backlight. After this timeout backlight will off.
+
+    config BLINK_GPIO
+        int "Blink GPIO number"
+        range 0 48
+        default 8 if IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32H2
+        default 18 if IDF_TARGET_ESP32S2
+        default 48 if IDF_TARGET_ESP32S3
+        default 2
+        help
+            GPIO number (IOxx) to blink on and off or the RMT signal for the addressable LED.
+            Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used to blink.
+
+endmenu
