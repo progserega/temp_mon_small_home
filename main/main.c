@@ -145,7 +145,7 @@ void add_alias_to_temp_devices(TEMPERATURE_data *td)
         //sprintf((td->temp_devices+i)->device_name,L"Сев ком,под утпл:");
         sprintf((td->temp_devices+i)->device_name,   "Sev kom,pesok:  ");
     }
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"28FCED56B513CA6")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"a63c01b556edfc28")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Улица:");
         sprintf((td->temp_devices+i)->device_name,   "Ulica:          ");
