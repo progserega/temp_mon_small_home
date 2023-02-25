@@ -6,7 +6,7 @@ typedef struct
 {
   unsigned char y_pos;
   unsigned char x_pos;
-  char *str;
+  char str[17];
 } qLCDData;
 
 typedef struct
@@ -80,6 +80,46 @@ static void update_ds1820_temp_task(void *arg)
   }
 }
 
+// в цикле показываем данные датчиков на экране:
+static void send_ds1820_temp_to_lcd_task(void *td)
+{
+  int num_devices;
+  int current_device_index=0;
+  char *buf[24];
+  qLCDData xLCDData;
+  // получаем количество устройств:
+  xSemaphoreTake(temperature_data_sem, NULL);
+  num_devices=((TEMPERATURE_data*)td)->num_devices;
+  xSemaphoreGive(temperature_data_sem);
+
+  for (;;) {
+    // обращаемся к общим данным только через семафор:
+    xSemaphoreTake(temperature_data_sem, NULL);
+    ESP_LOGI("send_ds1820_temp_to_lcd_task","send ds1820_temp to lcd");
+    sprintf(xLCDData.str,"%s",(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_addr);
+    xSemaphoreGive(temperature_data_sem);
+    //xLCDData.str = buf;
+    xLCDData.x_pos = 0;
+    xLCDData.y_pos = 0;
+    // первая строка:
+    xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+
+    xSemaphoreTake(temperature_data_sem, NULL);
+    sprintf(xLCDData.str,"%2.2f C, err=%d",
+      (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->temp,
+      (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->errors
+      );
+    xSemaphoreGive(temperature_data_sem);
+    //xLCDData.str = buf;
+    xLCDData.x_pos = 0;
+    xLCDData.y_pos = 1;
+    // вторая строка:
+    xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    current_device_index++;
+    if(current_device_index>=num_devices)current_device_index=0;
+  }
+}
 
 void vLCDTaskBackLight(void* arg)
 {
@@ -176,8 +216,6 @@ void app_main(void)
   // семафор для работы с данными температуры:
   temperature_data_sem = xSemaphoreCreateBinary();
 
-  xTaskCreate(vLCDTask, "vLCDTask", 2048, NULL, 2, NULL);
-  xTaskCreate(vLCDTaskBackLight, "vLCDTaskBackLight", 2048, NULL, 2, NULL);
   //start gpio task
   xTaskCreate(gpio_task, "gpio_task", 2048, NULL, 10, NULL);
   // инициализация экрана:
@@ -194,26 +232,19 @@ void app_main(void)
   }
   // запускаем поток обновления температуры:
   xTaskCreate(update_ds1820_temp_task, "update_ds1820_temp_task", 2048, td, 2, NULL);
-  while(1)
-  {
-    for(int i=0;i<td->num_devices;i++)
-    {
-      
-      xSemaphoreTake(temperature_data_sem, NULL);
-      printf("\naddr=%s, errors=%i, temp=%f\n",(td->temp_devices+i)->device_addr,(td->temp_devices+i)->errors,(td->temp_devices+i)->temp);
-      xSemaphoreGive(temperature_data_sem);
-    }
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
 
   ESP_LOGI(TAG, "i2c_ini: %d", ret);
   lcd_init(&lcd,126,16,2,8);  // set the LCD address to 0x27 for a 16 chars and 2 line display, 8 - small font, 10 - big font
+  // запускаем потоки работы с экраном - после инициализации экрана:
+  xTaskCreate(send_ds1820_temp_to_lcd_task, "send_ds1820_temp_to_lcd_task", 2048, td, 2, NULL);
+  xTaskCreate(vLCDTask, "vLCDTask", 2048, NULL, 2, NULL);
+  xTaskCreate(vLCDTaskBackLight, "vLCDTaskBackLight", 2048, NULL, 2, NULL);
 
   // включаем экран на таймаут:
   //xLCDbacklight.timeout = 8000; // 8000 ms
   //xQueueSendToBack(lcd_backlight_queue, &xLCDbacklight, 0);
   xSemaphoreGive(lcd_backlight_sem);
-
+/*
   //LCD_ini(126); // 0x4E - для 4-х строчного дисплея LCD2004A, 126 - для LCD1602A (младшие три бита адреса можно задать перемычками A0,A1,A2 на i2c плате - по умолчанию они подтянуты к 1б но можно замкнуть на землю)
   vTaskDelay(100 / portTICK_PERIOD_MS);
   xLCDData.str = str01;
@@ -240,5 +271,6 @@ void app_main(void)
     xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
+*/
 }
 //------------------------------------------------
