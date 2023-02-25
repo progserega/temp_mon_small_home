@@ -20,6 +20,8 @@ xQueueHandle lcd_string_queue = NULL;
 // очередь включения подсветки экрана:
 xQueueHandle lcd_backlight_queue = NULL;
 SemaphoreHandle_t lcd_backlight_sem;
+// семафор раздельного обращения к данным температуры:
+SemaphoreHandle_t temperature_data_sem;
 // очередь обработки нажатий кнопки:
 xQueueHandle gpio_evt_queue = NULL;
 
@@ -51,10 +53,31 @@ static void gpio_task(void *arg)
               ESP_LOGI("gpio_task", "enable backlight");
               //xLCDbacklight.timeout = 8000; // 8000 ms
               //xQueueSendToBack(lcd_backlight_queue, &xLCDbacklight, 0);
-              xSemaphoreGiveFromISR(lcd_backlight_sem, NULL);
+              xSemaphoreGive(lcd_backlight_sem);
             }
         }
     }
+}
+
+// обновляем данные по датчикам:
+static void update_ds1820_temp_task(void *arg)
+{
+  int ret;
+  for (;;) {
+    // обращаемся к общим данным только через семафор:
+    xSemaphoreTake(temperature_data_sem, NULL);
+    ESP_LOGI("update_ds1820_temp_task", "call update");
+    ret=temperature_update_device_data((TEMPERATURE_data *)arg);
+    xSemaphoreGive(temperature_data_sem);
+    if(ret==-1)
+    {
+      ESP_LOGE("update_ds1820_temp_task()", "temperature_update_device_data()");
+      // перезагружаем устройство:
+      vTaskDelay(10000 / portTICK_PERIOD_MS);
+      reboot();
+    }
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+  }
 }
 
 
@@ -130,6 +153,7 @@ void gpio_init(void)
 
 void reboot(void)
 {
+    ESP_LOGW("reboot()","code call reboot()");
     printf("Restarting now.\n");
     fflush(stdout);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -149,6 +173,8 @@ void app_main(void)
   //create a queue to handle gpio event from isr
   gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
   lcd_backlight_sem = xSemaphoreCreateBinary();
+  // семафор для работы с данными температуры:
+  temperature_data_sem = xSemaphoreCreateBinary();
 
   xTaskCreate(vLCDTask, "vLCDTask", 2048, NULL, 2, NULL);
   xTaskCreate(vLCDTaskBackLight, "vLCDTaskBackLight", 2048, NULL, 2, NULL);
@@ -166,20 +192,16 @@ void app_main(void)
     ESP_LOGI(TAG,"sleep and reboot");
     reboot();
   }
-  //TEMPERATURE_device *temp_devices = temperature_get_devices();
+  // запускаем поток обновления температуры:
+  xTaskCreate(update_ds1820_temp_task, "update_ds1820_temp_task", 2048, td, 2, NULL);
   while(1)
   {
-    ESP_LOGI(TAG,"call temperature_update_device_data() from app_main()");
-    if (temperature_update_device_data(td)==-1)
-    {
-      ESP_LOGE(TAG,"temperature_update_device_data()");
-      temperature_deactivate_devices(td);
-      ESP_LOGI(TAG,"sleep and reboot");
-      reboot();
-    }
     for(int i=0;i<td->num_devices;i++)
     {
+      
+      xSemaphoreTake(temperature_data_sem, NULL);
       printf("\naddr=%s, errors=%i, temp=%f\n",(td->temp_devices+i)->device_addr,(td->temp_devices+i)->errors,(td->temp_devices+i)->temp);
+      xSemaphoreGive(temperature_data_sem);
     }
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
@@ -190,7 +212,7 @@ void app_main(void)
   // включаем экран на таймаут:
   //xLCDbacklight.timeout = 8000; // 8000 ms
   //xQueueSendToBack(lcd_backlight_queue, &xLCDbacklight, 0);
-  xSemaphoreGiveFromISR(lcd_backlight_sem, NULL);
+  xSemaphoreGive(lcd_backlight_sem);
 
   //LCD_ini(126); // 0x4E - для 4-х строчного дисплея LCD2004A, 126 - для LCD1602A (младшие три бита адреса можно задать перемычками A0,A1,A2 на i2c плате - по умолчанию они подтянуты к 1б но можно замкнуть на землю)
   vTaskDelay(100 / portTICK_PERIOD_MS);
