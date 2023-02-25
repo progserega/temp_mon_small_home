@@ -276,12 +276,36 @@ void app_main(void)
   // семафор для работы с данными температуры:
   temperature_data_sem = xSemaphoreCreateBinary();
 
-  //start gpio task
-  xTaskCreate(gpio_task, "gpio_task", 2048, NULL, 10, NULL);
   // инициализация экрана:
   ret = i2c_ini();
+  ESP_LOGI(TAG, "i2c_ini: %d", ret);
+  lcd_init(&lcd,126,16,2,8);  // set the LCD address to 0x27 for a 16 chars and 2 line display, 8 - small font, 10 - big font
+
+  // запускаем потоки работы с экраном - после инициализации экрана:
+  xTaskCreate(vLCDTask, "vLCDTask", 2048, NULL, 2, NULL);
+  xTaskCreate(vLCDTaskBackLight, "vLCDTaskBackLight", 2048, NULL, 2, NULL);
+  // включаем экран на таймаут:
+  xSemaphoreGive(lcd_backlight_sem);
+
+  // выводим этапы инициализации на экран:
+  sprintf(xLCDData.str,"Gpio init...");
+  xLCDData.x_pos = 0;
+  xLCDData.y_pos = 0;
+  xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+  // задержка для отображения:
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  
   // инициализация gpio для кнопки:
   gpio_init();
+  //start gpio task
+  xTaskCreate(gpio_task, "gpio_task", 2048, NULL, 10, NULL);
+
+  // выводим этапы инициализации на экран:
+  sprintf(xLCDData.str,"Scan 1-wire...");
+  xLCDData.x_pos = 0;
+  xLCDData.y_pos = 0;
+  xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+ 
   // инициализация датчиков температуры:
   TEMPERATURE_data *td=temperature_init_devices();
   if(td == NULL)
@@ -293,14 +317,8 @@ void app_main(void)
   // прописываем имена устройствам:
   add_alias_to_temp_devices(td);
 
-  ESP_LOGI(TAG, "i2c_ini: %d", ret);
-  lcd_init(&lcd,126,16,2,8);  // set the LCD address to 0x27 for a 16 chars and 2 line display, 8 - small font, 10 - big font
-
   // запускаем поток обновления температуры:
   xTaskCreate(update_ds1820_temp_task, "update_ds1820_temp_task", 2048, td, 2, NULL);
-  // запускаем потоки работы с экраном - после инициализации экрана:
-  xTaskCreate(vLCDTask, "vLCDTask", 2048, NULL, 2, NULL);
-  xTaskCreate(vLCDTaskBackLight, "vLCDTaskBackLight", 2048, NULL, 2, NULL);
 
   // сообщаем количество найденных устройств:
   sprintf(xLCDData.str,"Found devices:");
@@ -319,37 +337,5 @@ void app_main(void)
   // запускаем поток передачи данных датчиков на экран:
   xTaskCreate(send_ds1820_temp_to_lcd_task, "send_ds1820_temp_to_lcd_task", 2048, td, 2, NULL);
 
-  // включаем экран на таймаут:
-  //xLCDbacklight.timeout = 8000; // 8000 ms
-  //xQueueSendToBack(lcd_backlight_queue, &xLCDbacklight, 0);
-  xSemaphoreGive(lcd_backlight_sem);
-/*
-  //LCD_ini(126); // 0x4E - для 4-х строчного дисплея LCD2004A, 126 - для LCD1602A (младшие три бита адреса можно задать перемычками A0,A1,A2 на i2c плате - по умолчанию они подтянуты к 1б но можно замкнуть на землю)
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  xLCDData.str = str01;
-  for(i=0;i<2;i++){
-    xLCDData.x_pos = i*3;
-    xLCDData.y_pos = i;
-    sprintf(str01,"String %d",i+1);
-    xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
-  }
-  vTaskDelay(2000 / portTICK_PERIOD_MS);
-  //lcd_clear(&lcd);
-  xLCDData.x_pos = 9;
-  xLCDData.y_pos = 1;
-  xLCDData.str = "        ";
-  xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
-  i = 0;
-  xLCDData.str = str01;
-  while (1) {
-    i++;
-    if(i>65534) i=0;
-    sprintf(str01,"%5d",i);
-    xLCDData.x_pos = 11;
-    xLCDData.y_pos = 1;
-    xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
-*/
 }
 //------------------------------------------------
