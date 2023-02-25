@@ -179,9 +179,9 @@ void app_main(void)
     }
     for(int i=0;i<num_tem_devices;i++)
     {
-      printf("\naddr=%s, errors=%i, temp=%f",temp_devices[i]->addr,&temp_devices[i]->errors,&temp_devices[i]->temp);
+      printf("\naddr=%s, errors=%i, temp=%f",(temp_devices+i)->device_addr,(temp_devices+i)->errors,(temp_devices+i)->temp);
     }
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(100000 / portTICK_PERIOD_MS);
   }
 
   ESP_LOGI(TAG, "i2c_ini: %d", ret);

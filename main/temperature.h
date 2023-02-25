@@ -22,7 +22,7 @@ typedef struct {
 int temperature_init_devices(void);
 int temperature_deactivate_devices(void);
 int temperature_update_device_data(void);
-struct TEMPERATURE_device * temperature_get_devices(void);
+TEMPERATURE_device * temperature_get_devices(void);
 //---------------------------------------------------------------------
 
 #endif /* TEMPERATURE_H_ */
