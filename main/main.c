@@ -177,11 +177,11 @@ void app_main(void)
       ESP_LOGI(TAG,"sleep and reboot");
       reboot();
     }
-    /*for(int i=0;i<num_tem_devices;i++)
+    for(int i=0;i<td->num_devices;i++)
     {
-      printf("\naddr=%s, errors=%i, temp=%f",(temp_devices+i)->device_addr,(temp_devices+i)->errors,(temp_devices+i)->temp);
-    }*/
-    vTaskDelay(100000 / portTICK_PERIOD_MS);
+      printf("\naddr=%s, errors=%i, temp=%f\n",(td->temp_devices+i)->device_addr,(td->temp_devices+i)->errors,(td->temp_devices+i)->temp);
+    }
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 
   ESP_LOGI(TAG, "i2c_ini: %d", ret);

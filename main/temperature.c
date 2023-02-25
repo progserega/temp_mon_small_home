@@ -36,26 +36,16 @@ int temperature_update_device_data(TEMPERATURE_data *td)
 {
   TAG="temperature_update_device_data()";
   ESP_LOGI(TAG,"start");
-  ESP_LOGD(TAG,"td=%p",(void*)td);
-
   if (td->num_devices > 0)
   {
-    ESP_LOGI(TAG,"1");
     TickType_t last_wake_time = xTaskGetTickCount();
-    ESP_LOGI(TAG,"2");
     ds18b20_convert_all(td->owb);
-    ESP_LOGI(TAG,"3");
     ds18b20_wait_for_conversion(td->devices); // td->devices[0]
-    ESP_LOGI(TAG,"4");
-
     float reading_temp;
     DS18B20_ERROR ds_error;
-    ESP_LOGI(TAG,"5");
     for (int i = 0; i < td->num_devices; i++)
     {
-    ESP_LOGI(TAG,"6");
       ds_error = ds18b20_read_temp(td->devices+i, &reading_temp);
-    ESP_LOGI(TAG,"7");
       if (ds_error != DS18B20_OK)
         (td->temp_devices+i)->errors++;
       else
@@ -140,11 +130,6 @@ TEMPERATURE_data* temperature_init_devices(void)
   // обнуляем выделенную память:
   memset(td->devices, 0, sizeof(DS18B20_Info)*td->num_devices);
   // сопоставляем каждому 1-wire устройству - соответствующий DS1820 датчик:
-  ESP_LOGI(TAG,"td->num_devices=%d",td->num_devices);
-  ESP_LOGI(TAG,"sizeof(DS18B20_Info)=%x",sizeof(DS18B20_Info));
-  ESP_LOGI(TAG,"td->devices=%p",(void*)td->devices);
-  ESP_LOGI(TAG,"td->devices+1=%p",(void*)(td->devices+1));
-  ESP_LOGI(TAG,"td->devices+2=%p",(void*)(td->devices+2));
   for (i = 0; i < td->num_devices; ++i)
   {
     if (td->num_devices == 1)
