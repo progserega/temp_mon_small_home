@@ -14,7 +14,7 @@
 #define ERROR_TEMPERATURE -1000
 typedef struct {
   char device_addr[OWB_ROM_CODE_STRING_LENGTH]; // адрес устройства на шине 1-wire
-  char *device_name; // символичное имя устройства (может назначаться извне)
+  char device_name[17]; // символичное имя устройства (может назначаться извне)
   float temp; // последняя прочитанная температура
   int errors; // количество ошибок чтения
 }TEMPERATURE_device ;

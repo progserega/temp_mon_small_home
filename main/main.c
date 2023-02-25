@@ -80,12 +80,59 @@ static void update_ds1820_temp_task(void *arg)
   }
 }
 
+// прописываем текстовые имена датчикам:
+void add_alias_to_temp_devices(TEMPERATURE_data *td)
+{
+  for(int i=0;i<td->num_devices;i++)
+  {
+    if(strcmp((td->temp_devices+i)->device_addr,"28A83456B513CF9")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Окруж.воздух:");
+        sprintf((td->temp_devices+i)->device_name,   "Okruj.vozduh:");
+    }
+    else if(strcmp((td->temp_devices+i)->device_addr,"28813EF41E19124")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Кухня,под утепл:");
+        sprintf((td->temp_devices+i)->device_name,   "Kuhnya, pesok:  ");
+    }
+    else if(strcmp((td->temp_devices+i)->device_addr,"2878DDDC1E19138")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Кухня, стяжка:  ");
+        sprintf((td->temp_devices+i)->device_name,   "Kuhnya, bet pol:");
+    }
+    else if(strcmp((td->temp_devices+i)->device_addr,"28E04079A2193E0")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Юж комн, песок:  ");
+        sprintf((td->temp_devices+i)->device_name,   "Yujn komn,pesok:");
+    }
+    else if(strcmp((td->temp_devices+i)->device_addr,"2846779A21326")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Кухня, песок:  ");
+        sprintf((td->temp_devices+i)->device_name,"Kuhna, pesok:  ");
+    }
+    else if(strcmp((td->temp_devices+i)->device_addr,"284FEF79A2135E")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Сев комн, песок:");
+        sprintf((td->temp_devices+i)->device_name,   "Sev komn, pesok:");
+    }
+    else if(strcmp((td->temp_devices+i)->device_addr,"28C34279A216394")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Сев ком,под утпл:");
+        sprintf((td->temp_devices+i)->device_name,   "Sev kom,pesok:");
+    }
+    else if(strcmp((td->temp_devices+i)->device_addr,"28FCED56B513CA6")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Улица:");
+        sprintf((td->temp_devices+i)->device_name,   "Ulica:");
+    }
+  }
+}
+
 // в цикле показываем данные датчиков на экране:
 static void send_ds1820_temp_to_lcd_task(void *td)
 {
   int num_devices;
   int current_device_index=0;
-  char *buf[24];
   qLCDData xLCDData;
   // получаем количество устройств:
   xSemaphoreTake(temperature_data_sem, NULL);
@@ -96,7 +143,19 @@ static void send_ds1820_temp_to_lcd_task(void *td)
     // обращаемся к общим данным только через семафор:
     xSemaphoreTake(temperature_data_sem, NULL);
     ESP_LOGI("send_ds1820_temp_to_lcd_task","send ds1820_temp to lcd");
-    sprintf(xLCDData.str,"%s",(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_addr);
+    ESP_LOGI("send_ds1820_temp_to_lcd_task","len(%s)=%d",
+      (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name,
+      strlen((((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name)
+    );
+    if(strlen((((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name)!=0)
+    {
+      sprintf(xLCDData.str,"%s",(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name);
+    }
+    else
+    {
+      // если имя пустое - отображаем шестнадцатиричный адрес датчика:
+      sprintf(xLCDData.str,"%s",(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_addr);
+    }
     xSemaphoreGive(temperature_data_sem);
     //xLCDData.str = buf;
     xLCDData.x_pos = 0;
@@ -105,9 +164,11 @@ static void send_ds1820_temp_to_lcd_task(void *td)
     xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
 
     xSemaphoreTake(temperature_data_sem, NULL);
-    sprintf(xLCDData.str,"%2.2f C, err=%d",
+    int error=(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->errors;
+    if(error>9999)error=9999;
+    sprintf(xLCDData.str,"%2.2f C,err=%d",
       (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->temp,
-      (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->errors
+      error
       );
     xSemaphoreGive(temperature_data_sem);
     //xLCDData.str = buf;
@@ -203,11 +264,10 @@ void reboot(void)
 void app_main(void)
 {
   TAG="app_main";
-  uint16_t i=0;
-  char str01[10];
-  esp_err_t ret;
   qLCDData xLCDData;
   qLCDbacklight xLCDbacklight;
+  esp_err_t ret;
+
   lcd_string_queue = xQueueCreate(10, sizeof(qLCDData));
   lcd_backlight_queue = xQueueCreate(10, sizeof(qLCDbacklight));
   //create a queue to handle gpio event from isr
@@ -230,15 +290,34 @@ void app_main(void)
     ESP_LOGI(TAG,"sleep and reboot");
     reboot();
   }
-  // запускаем поток обновления температуры:
-  xTaskCreate(update_ds1820_temp_task, "update_ds1820_temp_task", 2048, td, 2, NULL);
+  // прописываем имена устройствам:
+  add_alias_to_temp_devices(td);
 
   ESP_LOGI(TAG, "i2c_ini: %d", ret);
   lcd_init(&lcd,126,16,2,8);  // set the LCD address to 0x27 for a 16 chars and 2 line display, 8 - small font, 10 - big font
+
+  // запускаем поток обновления температуры:
+  xTaskCreate(update_ds1820_temp_task, "update_ds1820_temp_task", 2048, td, 2, NULL);
   // запускаем потоки работы с экраном - после инициализации экрана:
-  xTaskCreate(send_ds1820_temp_to_lcd_task, "send_ds1820_temp_to_lcd_task", 2048, td, 2, NULL);
   xTaskCreate(vLCDTask, "vLCDTask", 2048, NULL, 2, NULL);
   xTaskCreate(vLCDTaskBackLight, "vLCDTaskBackLight", 2048, NULL, 2, NULL);
+
+  // сообщаем количество найденных устройств:
+  sprintf(xLCDData.str,"Found devices:");
+  xLCDData.x_pos = 0;
+  xLCDData.y_pos = 0;
+  xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+  xSemaphoreTake(temperature_data_sem, NULL);
+  sprintf(xLCDData.str,"%d",td->num_devices);
+  xSemaphoreGive(temperature_data_sem);
+  xLCDData.x_pos = 0;
+  xLCDData.y_pos = 1;
+  xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+  // задержка для отображения:
+  vTaskDelay(3000 / portTICK_PERIOD_MS);
+    
+  // запускаем поток передачи данных датчиков на экран:
+  xTaskCreate(send_ds1820_temp_to_lcd_task, "send_ds1820_temp_to_lcd_task", 2048, td, 2, NULL);
 
   // включаем экран на таймаут:
   //xLCDbacklight.timeout = 8000; // 8000 ms
