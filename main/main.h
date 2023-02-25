@@ -12,6 +12,7 @@
 #include "sdkconfig.h"
 #include "i2c_user.h"
 #include "LiquidCrystal_I2C.h"
+#include "temperature.h"
 #include "driver/gpio.h"
 #include "freertos/semphr.h"
 //---------------------------------------------------------------------
@@ -23,5 +24,6 @@
 
 #define GPIO_INPUT_PIN_SEL  (1ULL<<CONFIG_BUTTON_GPIO)
 
+void reboot(void);
 
 #endif /* MAIN_MAIN_H_ */

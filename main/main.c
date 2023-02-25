@@ -1,6 +1,6 @@
 #include "main.h"
 //------------------------------------------------
-static const char *TAG = "main";
+char *TAG;
 //------------------------------------------------
 typedef struct
 {
@@ -127,8 +127,18 @@ void gpio_init(void)
 }
 
 //------------------------------------------------
+
+void reboot(void)
+{
+    printf("Restarting now.\n");
+    fflush(stdout);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    esp_restart();
+}
+
 void app_main(void)
 {
+  TAG="app_main";
   uint16_t i=0;
   char str01[10];
   esp_err_t ret;
@@ -144,9 +154,35 @@ void app_main(void)
   xTaskCreate(vLCDTaskBackLight, "vLCDTaskBackLight", 2048, NULL, 2, NULL);
   //start gpio task
   xTaskCreate(gpio_task, "gpio_task", 2048, NULL, 10, NULL);
+  // инициализация экрана:
   ret = i2c_ini();
-  // инициализация gpio:
+  // инициализация gpio для кнопки:
   gpio_init();
+  // инициализация датчиков температуры:
+  int num_tem_devices=temperature_init_devices();
+  if(num_tem_devices == -1)
+  {
+    ESP_LOGE(TAG,"temperature_init_devices()");
+    temperature_deactivate_devices();
+    ESP_LOGI(TAG,"sleep and reboot");
+    reboot();
+  }
+  TEMPERATURE_device *temp_devices = temperature_get_devices();
+  while(1)
+  {
+    if (temperature_update_device_data()==-1)
+    {
+      ESP_LOGE(TAG,"temperature_update_device_data()");
+      temperature_deactivate_devices();
+      ESP_LOGI(TAG,"sleep and reboot");
+      reboot();
+    }
+    for(int i=0;i<num_tem_devices;i++)
+    {
+      printf("\naddr=%s, errors=%i, temp=%f",temp_devices[i]->addr,&temp_devices[i]->errors,&temp_devices[i]->temp);
+    }
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
 
   ESP_LOGI(TAG, "i2c_ini: %d", ret);
   lcd_init(&lcd,126,16,2,8);  // set the LCD address to 0x27 for a 16 chars and 2 line display, 8 - small font, 10 - big font
