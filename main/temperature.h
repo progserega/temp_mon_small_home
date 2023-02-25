@@ -22,6 +22,8 @@ typedef struct {
 typedef struct {
   // шина 1-wire:
   OneWireBus * owb;
+  // rmt driver structure:
+  owb_rmt_driver_info *rmt_driver_info;
   // 1-wire устройства:
   OneWireBus_ROMCode *device_rom_codes;
   // DS1820 датчики:

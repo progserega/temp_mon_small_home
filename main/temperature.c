@@ -92,8 +92,16 @@ TEMPERATURE_data* temperature_init_devices(void)
   memset(td, 0, sizeof(TEMPERATURE_data));
   
   // Create a 1-Wire bus, using the RMT timeslot driver
-  owb_rmt_driver_info rmt_driver_info;
-  td->owb = owb_rmt_initialize(&rmt_driver_info, CONFIG_ONE_WIRE_GPIO, RMT_CHANNEL_1, RMT_CHANNEL_0);
+  td->rmt_driver_info = malloc(sizeof(owb_rmt_driver_info));
+  if (td->rmt_driver_info == NULL)
+  {
+    ESP_LOGE(TAG,"error allocate %d bytes",sizeof(owb_rmt_driver_info));
+    return NULL;
+  }
+  // обнуляем выделенную память:
+  memset(td->rmt_driver_info, 0, sizeof(owb_rmt_driver_info));
+ 
+  td->owb = owb_rmt_initialize(td->rmt_driver_info, CONFIG_ONE_WIRE_GPIO, RMT_CHANNEL_1, RMT_CHANNEL_0);
   owb_use_crc(td->owb, true);  // enable CRC check for ROM code
   // Find all connected td->devices
   printf("Find td->devices:\n");
