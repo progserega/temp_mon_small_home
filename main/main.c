@@ -159,28 +159,28 @@ void app_main(void)
   // инициализация gpio для кнопки:
   gpio_init();
   // инициализация датчиков температуры:
-  int num_tem_devices=temperature_init_devices();
-  if(num_tem_devices == -1)
+  TEMPERATURE_data *td=temperature_init_devices();
+  if(td == NULL)
   {
     ESP_LOGE(TAG,"temperature_init_devices()");
-    temperature_deactivate_devices();
     ESP_LOGI(TAG,"sleep and reboot");
     reboot();
   }
-  TEMPERATURE_device *temp_devices = temperature_get_devices();
+  //TEMPERATURE_device *temp_devices = temperature_get_devices();
   while(1)
   {
-    if (temperature_update_device_data()==-1)
+    ESP_LOGI(TAG,"call temperature_update_device_data() from app_main()");
+    if (temperature_update_device_data(td)==-1)
     {
       ESP_LOGE(TAG,"temperature_update_device_data()");
-      temperature_deactivate_devices();
+      temperature_deactivate_devices(td);
       ESP_LOGI(TAG,"sleep and reboot");
       reboot();
     }
-    for(int i=0;i<num_tem_devices;i++)
+    /*for(int i=0;i<num_tem_devices;i++)
     {
       printf("\naddr=%s, errors=%i, temp=%f",(temp_devices+i)->device_addr,(temp_devices+i)->errors,(temp_devices+i)->temp);
-    }
+    }*/
     vTaskDelay(100000 / portTICK_PERIOD_MS);
   }
 

@@ -18,11 +18,24 @@ typedef struct {
   float temp; // последняя прочитанная температура
   int errors; // количество ошибок чтения
 }TEMPERATURE_device ;
+
+typedef struct {
+  // шина 1-wire:
+  OneWireBus * owb;
+  // 1-wire устройства:
+  OneWireBus_ROMCode *device_rom_codes;
+  // DS1820 датчики:
+  DS18B20_Info *devices;
+  // количество найденных датчиков:
+  int num_devices;
+  // массив с данными устройств, выдаваемый наверх
+  TEMPERATURE_device *temp_devices;
+}TEMPERATURE_data;
+
 // поиск всех датчиков температуры (DS1820), подключённых к шине и их инициализация:
-int temperature_init_devices(void);
-int temperature_deactivate_devices(void);
-int temperature_update_device_data(void);
-TEMPERATURE_device * temperature_get_devices(void);
+TEMPERATURE_data* temperature_init_devices(void);
+int temperature_deactivate_devices(TEMPERATURE_data *td);
+int temperature_update_device_data(TEMPERATURE_data *td);
 //---------------------------------------------------------------------
 
 #endif /* TEMPERATURE_H_ */
