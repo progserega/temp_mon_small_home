@@ -24,6 +24,10 @@ SemaphoreHandle_t lcd_backlight_sem;
 SemaphoreHandle_t temperature_data_sem;
 // очередь обработки нажатий кнопки:
 xQueueHandle gpio_evt_queue = NULL;
+// текущий отображаемый датчик температуры:
+int current_device_index=0;
+// отображать ли автоматически сменяемые показания специальным потоком:
+int auto_show_temp=true;
 
 struct LiquidCrystal_I2C_Data lcd;
 //------------------------------------------------
@@ -80,50 +84,76 @@ static void update_ds1820_temp_task(void *arg)
   }
 }
 
+// приведение к нижнему регистру:
+char tolower(char in) {
+    if (in <= 'Z' && in >= 'A')
+        return in - ('Z' - 'z');
+    return in;
+}
+
+// регистронезависимое сравнение строк (приведение к нижнему регистру) - 0 - если равны,
+// не ноль - если не равны
+int strcicmpL(char const *a, char const *b) {
+  while (*b) {
+    int d = tolower(*a) - tolower(*b);
+    if (d) {
+        return d;
+    } 
+    a++;
+    b++;
+  } 
+  return tolower(*a);
+}
+
 // прописываем текстовые имена датчикам:
 void add_alias_to_temp_devices(TEMPERATURE_data *td)
 {
   for(int i=0;i<td->num_devices;i++)
   {
-    if(strcmp((td->temp_devices+i)->device_addr,"28A83456B513CF9")==0)
+    if(strcicmpL((td->temp_devices+i)->device_addr,"28A83456B513CF9")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Окруж.воздух:");
-        sprintf((td->temp_devices+i)->device_name,   "Okruj.vozduh:");
+        sprintf((td->temp_devices+i)->device_name,   "Okruj.vozduh:   ");
     }
-    else if(strcmp((td->temp_devices+i)->device_addr,"28813EF41E19124")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"28813EF41E19124")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Кухня,под утепл:");
         sprintf((td->temp_devices+i)->device_name,   "Kuhnya, pesok:  ");
     }
-    else if(strcmp((td->temp_devices+i)->device_addr,"2878DDDC1E19138")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"2878DDDC1E19138")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Кухня, стяжка:  ");
         sprintf((td->temp_devices+i)->device_name,   "Kuhnya, bet pol:");
     }
-    else if(strcmp((td->temp_devices+i)->device_addr,"28E04079A2193E0")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"28E04079A2193E0")==0)
     {
-        //sprintf((td->temp_devices+i)->device_name,L"Юж комн, песок:  ");
+        //sprintf((td->temp_devices+i)->device_name,L"Юж комн, песок: ");
         sprintf((td->temp_devices+i)->device_name,   "Yujn komn,pesok:");
     }
-    else if(strcmp((td->temp_devices+i)->device_addr,"2846779A21326")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"2846779A21326")==0)
     {
-        //sprintf((td->temp_devices+i)->device_name,L"Кухня, песок:  ");
-        sprintf((td->temp_devices+i)->device_name,"Kuhna, pesok:  ");
+        //sprintf((td->temp_devices+i)->device_name,L"Кухня, песок:   ");
+        sprintf((td->temp_devices+i)->device_name,   "Kuhna, pesok:   ");
     }
-    else if(strcmp((td->temp_devices+i)->device_addr,"284FEF79A2135E")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"284FEF79A2135E")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Сев комн, песок:");
         sprintf((td->temp_devices+i)->device_name,   "Sev komn, pesok:");
     }
-    else if(strcmp((td->temp_devices+i)->device_addr,"28C34279A216394")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"28C34279A216394")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Сев ком,под утпл:");
-        sprintf((td->temp_devices+i)->device_name,   "Sev kom,pesok:");
+        sprintf((td->temp_devices+i)->device_name,   "Sev kom,pesok:  ");
     }
-    else if(strcmp((td->temp_devices+i)->device_addr,"28FCED56B513CA6")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"28FCED56B513CA6")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Улица:");
-        sprintf((td->temp_devices+i)->device_name,   "Ulica:");
+        sprintf((td->temp_devices+i)->device_name,   "Ulica:          ");
+    }
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"7d3c01b556705828")==0)
+    {
+      // датчик припаянный к распред-плате тестового терминала:
+      sprintf((td->temp_devices+i)->device_name,     "test name:      ");
     }
   }
 }
@@ -132,7 +162,6 @@ void add_alias_to_temp_devices(TEMPERATURE_data *td)
 static void send_ds1820_temp_to_lcd_task(void *td)
 {
   int num_devices;
-  int current_device_index=0;
   qLCDData xLCDData;
   // получаем количество устройств:
   xSemaphoreTake(temperature_data_sem, NULL);
@@ -142,43 +171,51 @@ static void send_ds1820_temp_to_lcd_task(void *td)
   for (;;) {
     // обращаемся к общим данным только через семафор:
     xSemaphoreTake(temperature_data_sem, NULL);
-    ESP_LOGI("send_ds1820_temp_to_lcd_task","send ds1820_temp to lcd");
-    ESP_LOGI("send_ds1820_temp_to_lcd_task","len(%s)=%d",
-      (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name,
-      strlen((((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name)
-    );
-    if(strlen((((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name)!=0)
-    {
-      sprintf(xLCDData.str,"%s",(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name);
-    }
-    else
-    {
-      // если имя пустое - отображаем шестнадцатиричный адрес датчика:
-      sprintf(xLCDData.str,"%s",(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_addr);
-    }
+    int show=auto_show_temp;
     xSemaphoreGive(temperature_data_sem);
-    //xLCDData.str = buf;
-    xLCDData.x_pos = 0;
-    xLCDData.y_pos = 0;
-    // первая строка:
-    xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
-
-    xSemaphoreTake(temperature_data_sem, NULL);
-    int error=(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->errors;
-    if(error>9999)error=9999;
-    sprintf(xLCDData.str,"%2.2f C,err=%d",
-      (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->temp,
-      error
+    if (show)
+    {
+      xSemaphoreTake(temperature_data_sem, NULL);
+      ESP_LOGI("send_ds1820_temp_to_lcd_task","send ds1820_temp to lcd");
+      ESP_LOGI("send_ds1820_temp_to_lcd_task","len(%s)=%d",
+        (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name,
+        strlen((((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name)
       );
-    xSemaphoreGive(temperature_data_sem);
-    //xLCDData.str = buf;
-    xLCDData.x_pos = 0;
-    xLCDData.y_pos = 1;
-    // вторая строка:
-    xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+      if(strlen((((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name)!=0)
+      {
+        sprintf(xLCDData.str,"%s",(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name);
+      }
+      else
+      {
+        // если имя пустое - отображаем шестнадцатиричный адрес датчика:
+        sprintf(xLCDData.str,"%s",(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_addr);
+      }
+      xSemaphoreGive(temperature_data_sem);
+      //xLCDData.str = buf;
+      xLCDData.x_pos = 0;
+      xLCDData.y_pos = 0;
+      // первая строка:
+      xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+
+      xSemaphoreTake(temperature_data_sem, NULL);
+      int error=(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->errors;
+      if(error>9999)error=9999;
+      sprintf(xLCDData.str,"%2.2f C,err=%d",
+        (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->temp,
+        error
+        );
+      xSemaphoreGive(temperature_data_sem);
+      //xLCDData.str = buf;
+      xLCDData.x_pos = 0;
+      xLCDData.y_pos = 1;
+      // вторая строка:
+      xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+      xSemaphoreTake(temperature_data_sem, NULL);
+      current_device_index++;
+      if(current_device_index>=num_devices)current_device_index=0;
+      xSemaphoreGive(temperature_data_sem);
+    }
     vTaskDelay(5000 / portTICK_PERIOD_MS);
-    current_device_index++;
-    if(current_device_index>=num_devices)current_device_index=0;
   }
 }
 
