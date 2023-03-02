@@ -1,5 +1,6 @@
 #ifndef MAIN_MAIN_H_
 #define MAIN_MAIN_H_
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 //---------------------------------------------------------------------
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"

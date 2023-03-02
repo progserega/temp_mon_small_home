@@ -49,6 +49,7 @@ static void gpio_task(void *td)
     bool local_backlight_enable_flag=false;
     bool local_auto_show_temp=false;
     qLCDData xLCDData;
+    TAG="gpio_task()";
 
     for (;;) {
         if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
@@ -58,10 +59,10 @@ static void gpio_task(void *td)
             if (io_num == CONFIG_BUTTON_GPIO && val == 0 )
             {
               ESP_LOGI("gpio_task()","auto_show_temp=%i, backlight_enabled=%i",auto_show_temp,backlight_enabled);
-              xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+              ESP_LOGD(TAG,"xSemaphoreTake()");xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
               local_backlight_enable_flag=backlight_enabled;
               local_auto_show_temp = auto_show_temp;
-              xSemaphoreGive(temperature_data_sem);
+              ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(temperature_data_sem);
               if(local_backlight_enable_flag)
               {
                 ESP_LOGI("gpio_task()","1: current_device_index=%d",current_device_index);
@@ -74,13 +75,13 @@ static void gpio_task(void *td)
                 */ 
                 if(!local_auto_show_temp)
                 {
-                  ESP_LOGI("gpio_task()","2: current_device_index=%d",current_device_index);
+                  ESP_LOGI(TAG,"2: current_device_index=%d",current_device_index);
                   // уже выключен автоматический показ, значит переключаем на следующий датчик:
-                  xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+                  ESP_LOGD(TAG,"xSemaphoreTake()");xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
                   current_device_index++;
                   if(current_device_index>=((TEMPERATURE_data*)td)->num_devices)current_device_index=0;
 
-                  ESP_LOGI("gpio_task()","3: current_device_index=%d",current_device_index);
+                  ESP_LOGI(TAG,"3: current_device_index=%d",current_device_index);
                   // посылаем на экран:
                   // первая строка:
                   if(strlen((((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name)!=0)
@@ -92,13 +93,13 @@ static void gpio_task(void *td)
                     // если имя пустое - отображаем шестнадцатиричный адрес датчика:
                     sprintf(xLCDData.str,"%s",(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_addr);
                   }
-                  xSemaphoreGive(temperature_data_sem);
+                  ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(temperature_data_sem);
                   xLCDData.x_pos = 0;
                   xLCDData.y_pos = 0;
                   xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
   //                vTaskDelay(500 / portTICK_PERIOD_MS);
                   // вторая строка:
-                  xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+                  ESP_LOGD(TAG,"xSemaphoreTake()");xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
                   int error=(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->errors;
                   if(error>9999)error=9999;
                   sprintf(xLCDData.str,"%2.2f C,err=%d",
@@ -107,22 +108,22 @@ static void gpio_task(void *td)
                     );
                   xLCDData.x_pos = 0;
                   xLCDData.y_pos = 1;
-                  xSemaphoreGive(temperature_data_sem);
+                  ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(temperature_data_sem);
                   xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
                 }
-                xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+                ESP_LOGD(TAG,"xSemaphoreTake()");xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
                 auto_show_temp=false;
-                xSemaphoreGive(temperature_data_sem);
-                ESP_LOGI("gpio_task()","auto_show_temp=%i, backlight_enabled=%i",auto_show_temp,backlight_enabled);
-                ESP_LOGI("gpio_task()","4: current_device_index=%d",current_device_index);
+                ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(temperature_data_sem);
+                ESP_LOGI(TAG,"auto_show_temp=%i, backlight_enabled=%i",auto_show_temp,backlight_enabled);
+                ESP_LOGI(TAG,"4: current_device_index=%d",current_device_index);
               }
 
               //gpio_set_level(GPIO_OUTPUT_IO_BLINK,val);
               // включаем подсветку:
-              ESP_LOGI("gpio_task", "enable backlight");
+              ESP_LOGI(TAG,"enable backlight");
               //xLCDbacklight.timeout = 8000; // 8000 ms
               //xQueueSendToBack(lcd_backlight_queue, &xLCDbacklight, 0);
-              xSemaphoreGive(lcd_backlight_sem);
+              ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(lcd_backlight_sem);
             }
         }
     }
@@ -132,15 +133,16 @@ static void gpio_task(void *td)
 static void update_ds1820_temp_task(void *arg)
 {
   int ret;
+  TAG="update_ds1820_temp_task()";
   for (;;) {
     // обращаемся к общим данным только через семафор:
-    xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
-    ESP_LOGI("update_ds1820_temp_task", "call update");
+    ESP_LOGD(TAG,"xSemaphoreTake(temperature_data_sem):1");xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+    ESP_LOGI(TAG,"call update");
     ret=temperature_update_device_data((TEMPERATURE_data *)arg);
-    xSemaphoreGive(temperature_data_sem);
+    ESP_LOGD(TAG,"xSemaphoreGive(temperature_data_sem):2");xSemaphoreGive(temperature_data_sem);
     if(ret==-1)
     {
-      ESP_LOGE("update_ds1820_temp_task()", "temperature_update_device_data()");
+      ESP_LOGE(TAG, "temperature_update_device_data()");
       // перезагружаем устройство:
       vTaskDelay(10000 / portTICK_PERIOD_MS);
       reboot();
@@ -173,6 +175,7 @@ int strcicmpL(char const *a, char const *b) {
 // прописываем текстовые имена датчикам:
 void add_alias_to_temp_devices(TEMPERATURE_data *td)
 {
+  TAG="add_alias_to_temp_devices()";
   for(int i=0;i<td->num_devices;i++)
   {
     if(strcicmpL((td->temp_devices+i)->device_addr,"28A83456B513CF9")==0)
@@ -228,25 +231,27 @@ static void send_ds1820_temp_to_lcd_task(void *td)
 {
   int num_devices;
   qLCDData xLCDData;
+  TAG="send_ds1820_temp_to_lcd_task()";
   // получаем количество устройств:
-  xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+  ESP_LOGD(TAG,"xSemaphoreTake()");xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
   num_devices=((TEMPERATURE_data*)td)->num_devices;
-  xSemaphoreGive(temperature_data_sem);
+  ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(temperature_data_sem);
 
   for (;;) {
     // обращаемся к общим данным только через семафор:
-    xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+    ESP_LOGD(TAG,"xSemaphoreTake()");xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
     int show=auto_show_temp;
-    xSemaphoreGive(temperature_data_sem);
+    ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(temperature_data_sem);
     if (show)
     {
-      xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+      ESP_LOGD(TAG,"xSemaphoreTake()");xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
       // берём следующий датчик:
       current_device_index++;
       if(current_device_index>=num_devices)current_device_index=0;
 
+      ESP_LOGI("send_ds1820_temp_to_lcd_task","current_device_index=%d",current_device_index);
       ESP_LOGI("send_ds1820_temp_to_lcd_task","send ds1820_temp to lcd");
-      ESP_LOGI("send_ds1820_temp_to_lcd_task","len(%s)=%d",
+      ESP_LOGI("send_ds1820_temp_to_lcd_task","device_name len(%s)=%d",
           (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name,
           strlen((((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name)
         );
@@ -260,21 +265,22 @@ static void send_ds1820_temp_to_lcd_task(void *td)
         // если имя пустое - отображаем шестнадцатиричный адрес датчика:
         sprintf(xLCDData.str,"%s",(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_addr);
       }
-      xSemaphoreGive(temperature_data_sem);
+      ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(temperature_data_sem);
       //xLCDData.str = buf;
       xLCDData.x_pos = 0;
       xLCDData.y_pos = 0;
       // первая строка:
+      ESP_LOGI("send_ds1820_temp_to_lcd_task","send show string: %s",xLCDData.str);
       xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
 
-      xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+      ESP_LOGD(TAG,"xSemaphoreTake()");xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
       int error=(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->errors;
       if(error>9999)error=9999;
       sprintf(xLCDData.str,"%2.2f C,err=%d",
         (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->temp,
         error
         );
-      xSemaphoreGive(temperature_data_sem);
+      ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(temperature_data_sem);
       //xLCDData.str = buf;
       xLCDData.x_pos = 0;
       xLCDData.y_pos = 1;
@@ -289,28 +295,30 @@ void vLCDTaskBackLight(void* lcd)
 {
   BaseType_t xStatus;
   qLCDbacklight xReceivedData;
+  TAG="vLCDTaskBackLight()";
   for(;;) {
     //xStatus = xQueueReceive(lcd_backlight_queue, &xReceivedData, 10000 /portTICK_RATE_MS);
+    ESP_LOGD(TAG,"xSemaphoreTake(lcd_backlight_sem):1");
     xStatus = xSemaphoreTake( lcd_backlight_sem, portMAX_DELAY);
     if (xStatus == pdPASS)
     {
       //ESP_LOGI("vLCDTaskBackLight", "enable backlight for %d ms", xReceivedData.timeout);
-      xSemaphoreTake( lcd_backlight_sem,portMAX_DELAY);
+      ESP_LOGD(TAG,"xSemaphoreTake(temperature_data_sem):2");xSemaphoreTake( temperature_data_sem,portMAX_DELAY);
       // включаем флаг включения подсветки:
       backlight_enabled=true;
-      xSemaphoreGive( lcd_backlight_sem );
+      ESP_LOGD(TAG,"xSemaphoreGive(temperature_data_sem):3");xSemaphoreGive( temperature_data_sem );
       lcd_setBacklight(lcd,1);
       vTaskDelay(CONFIG_BACKLIGHT_TIMEOUT / portTICK_PERIOD_MS);
       //vTaskDelay(xReceivedData.timeout / portTICK_PERIOD_MS);
-      ESP_LOGI("vLCDTaskBackLight", "disable backlight after %d ms", CONFIG_BACKLIGHT_TIMEOUT);
+      ESP_LOGI(TAG,"disable backlight after %d ms", CONFIG_BACKLIGHT_TIMEOUT);
       lcd_setBacklight(lcd,0);
       // сбрасываем флаги:
-      xSemaphoreTake( lcd_backlight_sem,portMAX_DELAY);
+      ESP_LOGD(TAG,"xSemaphoreTake(temperature_data_sem):4");xSemaphoreTake( temperature_data_sem,portMAX_DELAY);
       // включаем автопролистывание:
       auto_show_temp=true;
       // выключаем флаг включения подсветки:
       backlight_enabled=false;
-      xSemaphoreGive( lcd_backlight_sem );
+      ESP_LOGD(TAG,"xSemaphoreGive(temperature_data_sem):5");xSemaphoreGive( temperature_data_sem );
     }
   }
 }
@@ -365,7 +373,8 @@ void gpio_init(void)
 
 void reboot(void)
 {
-    ESP_LOGW("reboot()","code call reboot()");
+    TAG="reboot()";
+    ESP_LOGW(TAG,"code call reboot()");
     printf("Restarting now.\n");
     fflush(stdout);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -378,6 +387,9 @@ void app_main(void)
   qLCDData xLCDData;
   qLCDbacklight xLCDbacklight;
   esp_err_t ret;
+  // устанавливаем уровни логирования для отдельных модулей:
+  esp_log_level_set("owb", ESP_LOG_ERROR);
+
 
   lcd_string_queue = xQueueCreate(10, sizeof(qLCDData));
   lcd_backlight_queue = xQueueCreate(10, sizeof(qLCDbacklight));
@@ -386,6 +398,7 @@ void app_main(void)
   lcd_backlight_sem = xSemaphoreCreateBinary();
   // семафор для работы с данными температуры:
   temperature_data_sem = xSemaphoreCreateBinary();
+  ESP_LOGD(TAG,"xSemaphoreGive(temperature_data_sem):2");xSemaphoreGive(temperature_data_sem);
 
   // инициализация экрана:
   ret = i2c_ini();
@@ -396,7 +409,7 @@ void app_main(void)
   xTaskCreate(vLCDTask, "vLCDTask", 2048, NULL, 2, NULL);
   xTaskCreate(vLCDTaskBackLight, "vLCDTaskBackLight", 2048, &lcd, 2, NULL);
   // включаем экран на таймаут:
-  xSemaphoreGive(lcd_backlight_sem);
+  ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(lcd_backlight_sem);
 
   // выводим этапы инициализации на экран:
   sprintf(xLCDData.str,"Gpio init...");
@@ -437,9 +450,9 @@ void app_main(void)
   xLCDData.x_pos = 0;
   xLCDData.y_pos = 0;
   xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
-  xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+  ESP_LOGD(TAG,"xSemaphoreTake()");xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
   sprintf(xLCDData.str,"%d",td->num_devices);
-  xSemaphoreGive(temperature_data_sem);
+  ESP_LOGD(TAG,"xSemaphoreGive()");xSemaphoreGive(temperature_data_sem);
   xLCDData.x_pos = 0;
   xLCDData.y_pos = 1;
   xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
