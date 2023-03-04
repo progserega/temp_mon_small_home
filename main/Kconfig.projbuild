@@ -31,9 +31,16 @@ menu "temp_mon_small_home Configuration"
     config BACKLIGHT_TIMEOUT
         int "Backlight screen timeout in microseconds"
         range 0 3600000
-        default 60000
+        default 120000
         help
             When button press - screen enable backlight. After this timeout backlight will off.
+
+    config FREEZE_AUTO_CHANGE_SHOW_TIMEOUT
+        int "Freeze timeout for autochange temperature in microseconds"
+        range 0 3600000
+        default 40000
+        help
+            When button press - autochange show temp cycle (for all sensors) is freeze and show only current sensor. After this timeout auto cycle will be continue.
 
     config BLINK_GPIO
         int "Blink GPIO number"

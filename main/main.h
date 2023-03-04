@@ -7,6 +7,7 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "driver/gpio.h"
+#include "driver/timer.h"
 #include "driver/i2c.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -26,5 +27,6 @@
 #define GPIO_INPUT_PIN_SEL  (1ULL<<CONFIG_BUTTON_GPIO)
 
 void reboot(void);
+void enableAutoShowTask(void* arg);
 
 #endif /* MAIN_MAIN_H_ */
