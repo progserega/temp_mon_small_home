@@ -54,7 +54,7 @@ static void gpio_task(void *td)
     const esp_timer_create_args_t auto_show_timer_args = {
             .callback = &enableAutoShowTask,
             /* argument specified here will be passed to timer callback function */
-            .arg = NULL,
+           // .arg = NULL,
             .name = "one-shot"
     };
     ESP_ERROR_CHECK(esp_timer_create(&auto_show_timer_args, &auto_show_timer));
@@ -64,7 +64,7 @@ static void gpio_task(void *td)
     for (;;) {
         if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
             val = gpio_get_level(io_num);
-            ESP_LOGI("gpio_task", "GPIO[%d] intr, val: %d\n", io_num, val);
+            ESP_LOGI(TAG,"(%s:%d): %s(): GPIO[%d] intr, val: %d\n",__FILE__,__LINE__,__func__, io_num, val);
             // берём только нижний фронт (нажатие):
             if (io_num == CONFIG_BUTTON_GPIO && val == 0 )
             {
@@ -122,12 +122,22 @@ static void gpio_task(void *td)
                   xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
                 }
                 ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreTake()",__FILE__,__LINE__,__func__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
-                auto_show_temp=false;
-                ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive()",__FILE__,__LINE__,__func__);xSemaphoreGive(temperature_data_sem);
                 // включаем таймер, который заново включит автопоказ:
                 ESP_LOGD(TAG,"(%s:%d): %s(): show esp_timer_dump()",__FILE__,__LINE__,__func__);
                 ESP_ERROR_CHECK(esp_timer_dump(stdout));
-                ESP_ERROR_CHECK(esp_timer_start_once(auto_show_timer,CONFIG_FREEZE_AUTO_CHANGE_SHOW_TIMEOUT * 1000 ));
+                // FIXME нужно добиться, чтобы при повторном нажатии не запускался ещё раз таймер - иначе падает в панику
+                if(auto_show_temp){
+                  ESP_LOGI(TAG,"(%s:%d): %s(): start auto_show_timer",__FILE__,__LINE__,__func__);
+                  ESP_ERROR_CHECK(esp_timer_start_once(auto_show_timer,CONFIG_FREEZE_AUTO_CHANGE_SHOW_TIMEOUT * 1000 ));
+                }
+                else{
+                  // если таймер уже запущен, то перезапускаем его, чтобы таймер отсчитывался от текущего момента:
+                  ESP_LOGI(TAG,"(%s:%d): %s(): restart auto_show_timer",__FILE__,__LINE__,__func__);
+                  ESP_ERROR_CHECK(esp_timer_stop(auto_show_timer));
+                  ESP_ERROR_CHECK(esp_timer_start_once(auto_show_timer,CONFIG_FREEZE_AUTO_CHANGE_SHOW_TIMEOUT * 1000 ));
+                }
+                auto_show_temp=false;
+                ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive()",__FILE__,__LINE__,__func__);xSemaphoreGive(temperature_data_sem);
 
                 ESP_LOGI(TAG,"(%s:%d): %s(): auto_show_temp=%i, backlight_enabled=%i",__FILE__,__LINE__,__func__,auto_show_temp,backlight_enabled);
                 ESP_LOGI(TAG,"(%s:%d): %s(): 4: current_device_index=%d",__FILE__,__LINE__,__func__,current_device_index);
