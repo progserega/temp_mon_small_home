@@ -125,7 +125,7 @@ static void gpio_task(void *td)
                 // включаем таймер, который заново включит автопоказ:
                 ESP_LOGD(TAG,"(%s:%d): %s(): show esp_timer_dump()",__FILE__,__LINE__,__func__);
                 ESP_ERROR_CHECK(esp_timer_dump(stdout));
-                // FIXME нужно добиться, чтобы при повторном нажатии не запускался ещё раз таймер - иначе падает в панику
+                // при повторном нажатии не должно опять запускать ещё раз таймер - иначе падает в панику
                 if(auto_show_temp){
                   ESP_LOGI(TAG,"(%s:%d): %s(): start auto_show_timer",__FILE__,__LINE__,__func__);
                   ESP_ERROR_CHECK(esp_timer_start_once(auto_show_timer,CONFIG_FREEZE_AUTO_CHANGE_SHOW_TIMEOUT * 1000 ));
