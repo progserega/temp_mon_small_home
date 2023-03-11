@@ -12,7 +12,9 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 #include "temperature.h"
-#include "main.h"
+
+// семафор раздельного обращения к данным температуры:
+extern SemaphoreHandle_t temperature_data_sem;
 
 //-------------------------------------------------------------
 void http_task(void *pvParameters);
