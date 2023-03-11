@@ -273,9 +273,9 @@ static void send_ds1820_temp_to_lcd_task(void *td)
       current_device_index++;
       if(current_device_index>=num_devices)current_device_index=0;
 
-      ESP_LOGI("send_ds1820_temp_to_lcd_task","current_device_index=%d",current_device_index);
-      ESP_LOGI("send_ds1820_temp_to_lcd_task","send ds1820_temp to lcd");
-      ESP_LOGI("send_ds1820_temp_to_lcd_task","device_name len(%s)=%d",
+      ESP_LOGD(TAG,"(%s:%d): %s(): send ds1820_temp to lcd",__FILE__,__LINE__,__func__);
+      ESP_LOGD(TAG,"(%s:%d): %s(): current_device_index=%d",__FILE__,__LINE__,__func__,current_device_index);
+      ESP_LOGD(TAG,"(%s:%d): %s(): device_name len(%s)=%d",__FILE__,__LINE__,__func__,
           (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name,
           strlen((((TEMPERATURE_data*)td)->temp_devices+current_device_index)->device_name)
         );
@@ -294,7 +294,7 @@ static void send_ds1820_temp_to_lcd_task(void *td)
       xLCDData.x_pos = 0;
       xLCDData.y_pos = 0;
       // первая строка:
-      ESP_LOGI("send_ds1820_temp_to_lcd_task","send show string: %s",xLCDData.str);
+      ESP_LOGD(TAG,"(%s:%d): %s(): send show string: %s",__FILE__,__LINE__,__func__,xLCDData.str);
       xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
 
       ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreTake()",__FILE__,__LINE__,__func__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);

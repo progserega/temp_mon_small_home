@@ -19,15 +19,17 @@ char* append_string(char* buf, int *buf_size, char *str)
   int new_len=0;
   int buf_new_size=*buf_size;
 
+  ESP_LOGD(TAG,"(%s:%d): %s(): start: buf=%p, buf_size=%d",__FILE__,__LINE__,__func__,buf,*buf_size);
   // выделяем, если нужно память:
   if(*buf_size==0){
-    *buf_size=1024;
-    new_buf=malloc(*buf_size);
+    buf_new_size=1024;
+    new_buf=malloc(buf_new_size);
     if(new_buf==NULL){
       ESP_LOGE(TAG,"(%s:%d): %s(): malloc()",__FILE__,__LINE__,__func__);
       *buf_size=0;
       return NULL;
     }
+    new_len=strlen(str);
   }
   else{
     buf_len=strlen(buf);
@@ -46,6 +48,10 @@ char* append_string(char* buf, int *buf_size, char *str)
         return NULL;
       }
     }
+    else{
+      // выделять новый блок не нужно - достаточно старого:
+      new_buf=buf;
+    }
   }
   // добавляем строку:
   strcpy(new_buf+buf_len,str);
@@ -58,10 +64,12 @@ char *create_json(TEMPERATURE_data* td)
   char *buf=NULL;
   int buf_size=0;
   buf=append_string(buf,&buf_size,"{");
+  ESP_LOGW(TAG,"(%s:%d): %s(): buf=%s",__FILE__,__LINE__,__func__,buf);
   if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
-  buf=append_string(buf,&buf_size,"\"name\"=\"test\",");
+  buf=append_string(buf,&buf_size,"\"name\":\"test\",");
+  ESP_LOGW(TAG,"(%s:%d): %s(): buf=%s",__FILE__,__LINE__,__func__,buf);
   if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
-  buf=append_string(buf,&buf_size,"\"name2\"=\"test2\"");
+  buf=append_string(buf,&buf_size,"\"name2\":\"test2\"");
   if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
   buf=append_string(buf,&buf_size,"}");
   if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}

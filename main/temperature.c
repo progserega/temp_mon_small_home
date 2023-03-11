@@ -1,6 +1,6 @@
 #include "temperature.h"
 //==============================================================
-char *TAG;
+static char *TAG="temperature";
 //==============================================================
 #define MAX_DEVICES          (8)
 #define DS18B20_RESOLUTION   (DS18B20_RESOLUTION_12_BIT)
@@ -9,8 +9,7 @@ char *TAG;
 
 int temperature_deactivate_devices(TEMPERATURE_data *td)
 {
-  TAG="temperature_deactivate_devices()";
-  ESP_LOGI(TAG,"start");
+  ESP_LOGD(TAG,"start");
   owb_uninitialize(td->owb);
   if(td->device_rom_codes)
   {
@@ -28,14 +27,13 @@ int temperature_deactivate_devices(TEMPERATURE_data *td)
   {
     free(td);
   }
-  ESP_LOGI(TAG,"end");
+  ESP_LOGD(TAG,"end");
   return 0;
 }
 
 int temperature_update_device_data(TEMPERATURE_data *td)
 {
-  TAG="temperature_update_device_data()";
-  ESP_LOGI(TAG,"start");
+  ESP_LOGD(TAG,"start");
   if (td->num_devices > 0)
   {
     TickType_t last_wake_time = xTaskGetTickCount();
@@ -56,10 +54,10 @@ int temperature_update_device_data(TEMPERATURE_data *td)
   else
   {
     ESP_LOGE(TAG,"No DS18B20 td->devices detected!");
-    ESP_LOGI(TAG,"end");
+    ESP_LOGD(TAG,"end");
     return -1;
   }
-  ESP_LOGI(TAG,"end");
+  ESP_LOGD(TAG,"end");
   return 0;
 }
 
@@ -68,7 +66,7 @@ TEMPERATURE_data* temperature_init_devices(void)
 {
   int i=0;
   TAG="temperature_init_devices()";
-  ESP_LOGI(TAG,"start");
+  ESP_LOGD(TAG,"start");
 
   // основная структура объекта температур:
   TEMPERATURE_data *td = NULL;
@@ -170,7 +168,7 @@ TEMPERATURE_data* temperature_init_devices(void)
     // адрес устройства - в строку:
     owb_string_from_rom_code(*(td->device_rom_codes+i), (td->temp_devices+i)->device_addr, OWB_ROM_CODE_STRING_LENGTH);
   }
-  ESP_LOGI(TAG,"end");
+  ESP_LOGD(TAG,"end");
   temperature_update_device_data(td);
   temperature_update_device_data(td);
   temperature_update_device_data(td);
