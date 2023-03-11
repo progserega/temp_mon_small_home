@@ -1,8 +1,9 @@
 #ifndef MAIN_MAIN_H_
 #define MAIN_MAIN_H_
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 //---------------------------------------------------------------------
 #include <stdio.h>
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -10,6 +11,7 @@
 #include "driver/timer.h"
 #include "driver/i2c.h"
 #include "esp_err.h"
+#include "esp_system.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
 #include "i2c_user.h"
@@ -17,6 +19,9 @@
 #include "temperature.h"
 #include "driver/gpio.h"
 #include "freertos/semphr.h"
+#include "nvs_flash.h"
+#include "wifi.h"
+#include "http.h"
 //---------------------------------------------------------------------
 
 // кнопка GPIO14 (D5) - замыкает на землю:
@@ -28,5 +33,6 @@
 
 void reboot(void);
 void enableAutoShowTask(void* arg);
+void init_wifi(void);
 
 #endif /* MAIN_MAIN_H_ */

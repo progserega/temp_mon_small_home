@@ -75,7 +75,7 @@ static void gpio_task(void *td)
               ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive()",__FILE__,__LINE__,__func__);xSemaphoreGive(temperature_data_sem);
               if(local_backlight_enable_flag)
               {
-                ESP_LOGI("gpio_task()","1: current_device_index=%d",current_device_index);
+                ESP_LOGD(TAG,"(%s:%d): %s(): current_device_index=%d",__FILE__,__LINE__,__func__, current_device_index);
                 /* первый раз нажали кнопку - включается подсветка, показания температуры
                 всё так же пролистываются автоматически
                 второй раз нажали кнопку - показания перестают пролистываться
@@ -178,7 +178,7 @@ static void update_ds1820_temp_task(void *arg)
 }
 
 // приведение к нижнему регистру:
-char tolower(char in) {
+char charToLower(char in) {
     if (in <= 'Z' && in >= 'A')
         return in - ('Z' - 'z');
     return in;
@@ -188,14 +188,14 @@ char tolower(char in) {
 // не ноль - если не равны
 int strcicmpL(char const *a, char const *b) {
   while (*b) {
-    int d = tolower(*a) - tolower(*b);
+    int d = charToLower(*a) - charToLower(*b);
     if (d) {
         return d;
     } 
     a++;
     b++;
   } 
-  return tolower(*a);
+  return charToLower(*a);
 }
 
 // прописываем текстовые имена датчикам:
@@ -413,6 +413,26 @@ void reboot(void)
     esp_restart();
 }
 
+void init_wifi(void)
+{
+  //Initialize NVS
+   esp_err_t ret;
+  ret = nvs_flash_init();
+  if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    ret = nvs_flash_erase();
+    ESP_LOGI(TAG, "nvs_flash_erase: 0x%04x", ret);
+    ret = nvs_flash_init();
+    ESP_LOGI(TAG, "nvs_flash_init: 0x%04x", ret);
+  }
+  ESP_LOGI(TAG, "nvs_flash_init: 0x%04x", ret);
+  ret = esp_netif_init();
+  ESP_LOGI(TAG, "esp_netif_init: %d", ret);
+  ret = esp_event_loop_create_default();
+  ESP_LOGI(TAG, "esp_event_loop_create_default: %d", ret);
+  ret = wifi_init_sta();
+  ESP_LOGI(TAG, "wifi_init_sta: %d", ret);
+}
+
 void app_main(void)
 {
   qLCDData xLCDData;
@@ -492,13 +512,11 @@ void app_main(void)
   // запускаем поток передачи данных датчиков на экран:
   xTaskCreate(send_ds1820_temp_to_lcd_task, "send_ds1820_temp_to_lcd_task", 2048, td, 2, NULL);
 
-/*
-  for(;;)
-  {
-  lcd_setBacklight(&lcd,1);
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
-  lcd_setBacklight(&lcd,0);
-  }
-*/
+  // запускаем WiFi:
+  init_wifi();
+
+  // запускаем http-сервис:
+  xTaskCreate(http_task, "http_task", 4096, td, 5, NULL);
+//  xTaskCreate(http_task, "http_task", 4096, NULL, 5, NULL);
 }
 //------------------------------------------------
