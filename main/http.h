@@ -12,6 +12,7 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 #include "temperature.h"
+#include "main.h"
 
 //-------------------------------------------------------------
 void http_task(void *pvParameters);

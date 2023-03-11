@@ -29,6 +29,9 @@
 //#define CONFIG_BUTTON_GPIO     14
 //#define CONFIG_BACKLIGHT_TIMEOUT=600000
 
+// семафор раздельного обращения к данным температуры:
+SemaphoreHandle_t temperature_data_sem;
+
 #define GPIO_INPUT_PIN_SEL  (1ULL<<CONFIG_BUTTON_GPIO)
 
 void reboot(void);

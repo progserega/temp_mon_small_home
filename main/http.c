@@ -61,18 +61,36 @@ char* append_string(char* buf, int *buf_size, char *str)
 }
 char *create_json(TEMPERATURE_data* td)
 {
+#define ADDSTR(buf, size, str) buf=append_string(buf,size,str);if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
   char *buf=NULL;
   int buf_size=0;
-  buf=append_string(buf,&buf_size,"{");
-  ESP_LOGW(TAG,"(%s:%d): %s(): buf=%s",__FILE__,__LINE__,__func__,buf);
-  if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
-  buf=append_string(buf,&buf_size,"\"name\":\"test\",");
-  ESP_LOGW(TAG,"(%s:%d): %s(): buf=%s",__FILE__,__LINE__,__func__,buf);
-  if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
-  buf=append_string(buf,&buf_size,"\"name2\":\"test2\"");
-  if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
-  buf=append_string(buf,&buf_size,"}");
-  if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
+  char tmp[256];
+  //buf=append_string(buf,&buf_size,"{");
+  //if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
+  ADDSTR(buf,&buf_size,"{");
+  ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreTake(temperature_data_sem)",__FILE__,__LINE__,__func__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+  for(int i=0;i<td->num_devices;i++)
+  {
+    sprintf(tmp,"\"%s\":{",(td->temp_devices+i)->device_addr);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"\"name\":\"%s\",",(td->temp_devices+i)->device_name);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"\"addr\":\"%s\",",(td->temp_devices+i)->device_addr);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"\"current_temperature\":%3.3f,",(td->temp_devices+i)->temp);
+    ADDSTR(buf,&buf_size,tmp);
+    // последний объект без запятой после себя:
+    sprintf(tmp,"\"errors\":%d",(td->temp_devices+i)->errors);
+    ADDSTR(buf,&buf_size,tmp);
+    // закрываем объект:
+    ADDSTR(buf,&buf_size,"}");
+    // последний объект без запятой после себя:
+    if(i<td->num_devices-1){
+      ADDSTR(buf,&buf_size,",");
+    }
+  }
+  ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive(temperature_data_sem)",__FILE__,__LINE__,__func__);xSemaphoreGive(temperature_data_sem);
+  ADDSTR(buf,&buf_size,"}");
   return buf;
 }
 
