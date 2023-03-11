@@ -1,6 +1,7 @@
 #ifndef MAIN_HTTP_H_
 #define MAIN_HTTP_H_
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+//#define LOG_LOCAL_LEVEL ESP_LOG_ERROR
+//#define LOG_LOCAL_LEVEL ESP_LOG_INFO
 //-------------------------------------------------------------
 #include <string.h>
 #include "freertos/FreeRTOS.h"

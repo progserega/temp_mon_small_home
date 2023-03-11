@@ -353,7 +353,7 @@ void vLCDTask(void* arg)
     {
       lcd_setCursor(&lcd,xReceivedData.x_pos,xReceivedData.y_pos);
       lcd_print(&lcd,xReceivedData.str);
-      ESP_LOGI("vLCDTask", "set to position %d,%d string: %s", xReceivedData.x_pos, xReceivedData.y_pos, xReceivedData.str);
+      ESP_LOGD(TAG,"(%s:%d): %s(): set to position %d,%d string: %s",__FILE__,__LINE__,__func__, xReceivedData.x_pos, xReceivedData.y_pos, xReceivedData.str);
     }
   }
 }
@@ -439,7 +439,11 @@ void app_main(void)
   qLCDbacklight xLCDbacklight;
   esp_err_t ret;
   // устанавливаем уровни логирования для отдельных модулей:
+  esp_log_level_set("*", ESP_LOG_ERROR);        // set all components to ERROR level
   esp_log_level_set("owb", ESP_LOG_ERROR);
+  esp_log_level_set("wifi", ESP_LOG_WARN);      // enable WARN logs from WiFi stack
+  esp_log_level_set("dhcpc", ESP_LOG_INFO);     // enable INFO logs from DHCP client
+  esp_log_level_set("http", ESP_LOG_DEBUG);     // enable INFO logs from DHCP client
 
   lcd_string_queue = xQueueCreate(10, sizeof(qLCDData));
   lcd_backlight_queue = xQueueCreate(10, sizeof(qLCDbacklight));

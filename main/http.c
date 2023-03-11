@@ -102,12 +102,12 @@ void http_task(void *pvParameters)
   char *json_data;
   int buflen = 1024;
   struct sockaddr_in servaddr, cliaddr;
-  ESP_LOGI(TAG, "Create socket...");
+  ESP_LOGI(TAG,"(%s:%d): %s(): Create socket...",__FILE__,__LINE__,__func__);
   if ( (sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0 ) {
     ESP_LOGE(TAG, "socket not created");
     vTaskDelete(NULL);
   }
-  ESP_LOGI(TAG, "Socket created");
+  ESP_LOGI(TAG,"(%s:%d): %s(): Socket created",__FILE__,__LINE__,__func__);
   memset(&servaddr, 0, sizeof(servaddr));
   //Заполнение информации о сервере
   servaddr.sin_family    = AF_INET; // IPv4
@@ -116,16 +116,16 @@ void http_task(void *pvParameters)
   //Свяжем сокет с адресом сервера
   if (bind(sockfd, (const struct sockaddr *)&servaddr,  sizeof(struct sockaddr_in)) < 0 )
   {
-    ESP_LOGE(TAG, "socket not binded");
+    ESP_LOGE(TAG,"(%s:%d): %s(): socket not binded",__FILE__,__LINE__,__func__);
     vTaskDelete(NULL);
   }
-  ESP_LOGI(TAG, "socket was binded");
+  ESP_LOGI(TAG,"(%s:%d): %s(): socket was binded",__FILE__,__LINE__,__func__);
   listen(sockfd, 5);
   while(1)
   {
     memset(&cliaddr, 0, sizeof(cliaddr));
     accept_sock = accept(sockfd, (struct sockaddr *)&cliaddr, (socklen_t *)&sockaddrsize);
-    printf("socket: %d\n", accept_sock);
+    ESP_LOGD(TAG,"(%s:%d): %s(): socket: %d",__FILE__,__LINE__,__func__, accept_sock);
     if(accept_sock >= 0)
     {
       buf = heap_caps_malloc(1024, MALLOC_CAP_8BIT);

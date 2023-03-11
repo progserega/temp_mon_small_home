@@ -9,7 +9,7 @@ static char *TAG="temperature";
 
 int temperature_deactivate_devices(TEMPERATURE_data *td)
 {
-  ESP_LOGD(TAG,"start");
+  ESP_LOGD(TAG,"(%s:%d): %s(): start",__FILE__,__LINE__,__func__);
   owb_uninitialize(td->owb);
   if(td->device_rom_codes)
   {
@@ -27,13 +27,13 @@ int temperature_deactivate_devices(TEMPERATURE_data *td)
   {
     free(td);
   }
-  ESP_LOGD(TAG,"end");
+  ESP_LOGD(TAG,"(%s:%d): %s(): end",__FILE__,__LINE__,__func__);
   return 0;
 }
 
 int temperature_update_device_data(TEMPERATURE_data *td)
 {
-  ESP_LOGD(TAG,"start");
+  ESP_LOGD(TAG,"(%s:%d): %s(): start",__FILE__,__LINE__,__func__);
   if (td->num_devices > 0)
   {
     TickType_t last_wake_time = xTaskGetTickCount();
@@ -53,11 +53,11 @@ int temperature_update_device_data(TEMPERATURE_data *td)
   }
   else
   {
-    ESP_LOGE(TAG,"No DS18B20 td->devices detected!");
-    ESP_LOGD(TAG,"end");
+    ESP_LOGE(TAG,"(%s:%d): %s(): No DS18B20 td->devices detected!",__FILE__,__LINE__,__func__);
+    ESP_LOGD(TAG,"(%s:%d): %s(): end",__FILE__,__LINE__,__func__);
     return -1;
   }
-  ESP_LOGD(TAG,"end");
+  ESP_LOGD(TAG,"(%s:%d): %s(): end",__FILE__,__LINE__,__func__);
   return 0;
 }
 
@@ -66,14 +66,14 @@ TEMPERATURE_data* temperature_init_devices(void)
 {
   int i=0;
   TAG="temperature_init_devices()";
-  ESP_LOGD(TAG,"start");
+  ESP_LOGD(TAG,"(%s:%d): %s(): start",__FILE__,__LINE__,__func__);
 
   // основная структура объекта температур:
   TEMPERATURE_data *td = NULL;
   td = malloc(sizeof(TEMPERATURE_data));
   if (td == NULL)
   {
-    ESP_LOGE(TAG,"error allocate %d bytes",sizeof(TEMPERATURE_data));
+    ESP_LOGE(TAG,"(%s:%d): %s(): error allocate %d bytes",__FILE__,__LINE__,__func__,sizeof(TEMPERATURE_data));
     return NULL;
   }
   // обнуляем выделенную память:
@@ -83,7 +83,7 @@ TEMPERATURE_data* temperature_init_devices(void)
   td->rmt_driver_info = malloc(sizeof(owb_rmt_driver_info));
   if (td->rmt_driver_info == NULL)
   {
-    ESP_LOGE(TAG,"error allocate %d bytes",sizeof(owb_rmt_driver_info));
+    ESP_LOGE(TAG,"(%s:%d): %s(): error allocate %d bytes",__FILE__,__LINE__,__func__,sizeof(owb_rmt_driver_info));
     return NULL;
   }
   // обнуляем выделенную память:
@@ -104,7 +104,7 @@ TEMPERATURE_data* temperature_init_devices(void)
     td->device_rom_codes = realloc(td->device_rom_codes,sizeof(OneWireBus_ROMCode)*(td->num_devices+1));
     if (td->device_rom_codes == NULL)
     {
-      ESP_LOGE(TAG,"error reallocate %d bytes",sizeof(OneWireBus_ROMCode)*(td->num_devices+1));
+      ESP_LOGE(TAG,"(%s:%d): %s(): error reallocate %d bytes",__FILE__,__LINE__,__func__,sizeof(OneWireBus_ROMCode)*(td->num_devices+1));
       temperature_deactivate_devices(td);
       return NULL;
     }
@@ -114,14 +114,14 @@ TEMPERATURE_data* temperature_init_devices(void)
     ++td->num_devices;
     owb_search_next(td->owb, &search_state, &found);
   }
-  ESP_LOGI(TAG,"Found %d device%s\n", td->num_devices, td->num_devices == 1 ? "" : "s");
+  ESP_LOGI(TAG,"(%s:%d): %s(): Found %d device%s\n",__FILE__,__LINE__,__func__, td->num_devices, td->num_devices == 1 ? "" : "s");
 
   // Create DS18B20 td->devices on the 1-Wire bus
   // создаём массив структур DS1820 датчиков:
   td->devices = malloc(sizeof(DS18B20_Info)*td->num_devices);
   if (td->devices == NULL)
   {
-    ESP_LOGE(TAG,"error allocate %d bytes",sizeof(DS18B20_Info)*td->num_devices);
+    ESP_LOGE(TAG,"(%s:%d): %s(): error allocate %d bytes",__FILE__,__LINE__,__func__,sizeof(DS18B20_Info)*td->num_devices);
     temperature_deactivate_devices(td);
     return NULL;
   }
@@ -132,7 +132,7 @@ TEMPERATURE_data* temperature_init_devices(void)
   {
     if (td->num_devices == 1)
     {
-        ESP_LOGI(TAG,"Single device optimisations enabled");
+        ESP_LOGI(TAG,"(%s:%d): %s(): Single device optimisations enabled",__FILE__,__LINE__,__func__);
         ds18b20_init_solo(td->devices+i, td->owb);          // only one device on bus
     }
     else
@@ -156,7 +156,7 @@ TEMPERATURE_data* temperature_init_devices(void)
   td->temp_devices = malloc(sizeof(TEMPERATURE_device)*td->num_devices);
   if (td->temp_devices == NULL)
   {
-    ESP_LOGE(TAG,"error allocate %d bytes",sizeof(TEMPERATURE_device)*td->num_devices);
+    ESP_LOGE(TAG,"(%s:%d): %s(): error allocate %d bytes",__FILE__,__LINE__,__func__,sizeof(TEMPERATURE_device)*td->num_devices);
     temperature_deactivate_devices(td);
     return NULL;
   }
@@ -168,7 +168,7 @@ TEMPERATURE_data* temperature_init_devices(void)
     // адрес устройства - в строку:
     owb_string_from_rom_code(*(td->device_rom_codes+i), (td->temp_devices+i)->device_addr, OWB_ROM_CODE_STRING_LENGTH);
   }
-  ESP_LOGD(TAG,"end");
+  ESP_LOGD(TAG,"(%s:%d): %s(): end",__FILE__,__LINE__,__func__);
   temperature_update_device_data(td);
   temperature_update_device_data(td);
   temperature_update_device_data(td);
