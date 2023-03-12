@@ -1,5 +1,5 @@
-#ifndef MAIN_MAIN_H_
-#define MAIN_MAIN_H_
+#ifndef INTERFACE_H_
+#define INTERFACE_H_
 //---------------------------------------------------------------------
 #include <stdio.h>
 #include <string.h>
@@ -13,12 +13,8 @@
 #include "i2c_user.h"
 #include "LiquidCrystal_I2C.h"
 #include "temperature.h"
-#include "interface.h"
 #include "driver/gpio.h"
 #include "freertos/semphr.h"
-#include "nvs_flash.h"
-#include "wifi.h"
-#include "http.h"
 #include "esp_err.h"
 #include "esp_system.h"
 
@@ -31,11 +27,25 @@
 //#define CONFIG_BUTTON_GPIO     14
 //#define CONFIG_BACKLIGHT_TIMEOUT=600000
 
+typedef struct
+{
+  unsigned char y_pos;
+  unsigned char x_pos;
+  char str[17];
+} qLCDData;
+
+typedef struct
+{
+  int timeout;
+} qLCDbacklight;
 
 #define GPIO_INPUT_PIN_SEL  (1ULL<<CONFIG_BUTTON_GPIO)
 
-void reboot(void);
 void enableAutoShowTask(void* arg);
-void init_wifi(void);
+void gpio_task(void *td);
+void send_ds1820_temp_to_lcd_task(void *td);
+void vLCDTaskBackLight(void* lcd);
+void vLCDTask(void* arg);
+void enableAutoShowTask(void* arg);
 
-#endif /* MAIN_MAIN_H_ */
+#endif /* INTERFACE_H_ */

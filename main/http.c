@@ -148,7 +148,6 @@ void http_task(void *pvParameters)
             */
            // strcpy((char*)buf,json_header);
             ESP_LOGI(TAG,"(%s:%d): %s(): create json_data",__FILE__,__LINE__,__func__);
-            ESP_LOGD(TAG,"(%s:%d): %s(): create json_data",__FILE__,__LINE__,__func__);
             write(accept_sock, (const unsigned char*)json_header, strlen(json_header));
             json_data=create_json((TEMPERATURE_data*)pvParameters);
             ESP_LOGD(TAG,"(%s:%d): %s(): json_data=%s",__FILE__,__LINE__,__func__,json_data);

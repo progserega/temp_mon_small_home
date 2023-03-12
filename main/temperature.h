@@ -38,7 +38,10 @@ typedef struct {
 // поиск всех датчиков температуры (DS1820), подключённых к шине и их инициализация:
 TEMPERATURE_data* temperature_init_devices(void);
 int temperature_deactivate_devices(TEMPERATURE_data *td);
+// обновление данных по датчикам:
 int temperature_update_device_data(TEMPERATURE_data *td);
+// прописывание имён датчикам:
+void add_alias_to_temp_devices(TEMPERATURE_data *td);
 //---------------------------------------------------------------------
 
 #endif /* TEMPERATURE_H_ */

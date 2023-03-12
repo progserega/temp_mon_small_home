@@ -174,3 +174,77 @@ TEMPERATURE_data* temperature_init_devices(void)
   temperature_update_device_data(td);
   return td;
 }
+
+// приведение к нижнему регистру:
+char charToLower(char in) {
+    if (in <= 'Z' && in >= 'A')
+        return in - ('Z' - 'z');
+    return in;
+}
+
+// регистронезависимое сравнение строк (приведение к нижнему регистру) - 0 - если равны,
+// не ноль - если не равны
+int strcicmpL(char const *a, char const *b) {
+  while (*b) {
+    int d = charToLower(*a) - charToLower(*b);
+    if (d) {
+        return d;
+    } 
+    a++;
+    b++;
+  } 
+  return charToLower(*a);
+}
+
+// прописываем текстовые имена датчикам:
+void add_alias_to_temp_devices(TEMPERATURE_data *td)
+{
+  for(int i=0;i<td->num_devices;i++)
+  {
+    if(strcicmpL((td->temp_devices+i)->device_addr,"28A83456B513CF9")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Окруж.воздух:");
+        sprintf((td->temp_devices+i)->device_name,   "Okruj.vozduh:   ");
+    }
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"28813EF41E19124")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Кухня,под утепл:");
+        sprintf((td->temp_devices+i)->device_name,   "Kuhnya, pesok:  ");
+    }
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"2878DDDC1E19138")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Кухня, стяжка:  ");
+        sprintf((td->temp_devices+i)->device_name,   "Kuhnya, bet pol:");
+    }
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"28E04079A2193E0")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Юж комн, песок: ");
+        sprintf((td->temp_devices+i)->device_name,   "Yujn komn,pesok:");
+    }
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"2846779A21326")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Кухня, песок:   ");
+        sprintf((td->temp_devices+i)->device_name,   "Kuhna, pesok:   ");
+    }
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"284FEF79A2135E")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Сев комн, песок:");
+        sprintf((td->temp_devices+i)->device_name,   "Sev komn, pesok:");
+    }
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"28C34279A216394")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Сев ком,под утпл:");
+        sprintf((td->temp_devices+i)->device_name,   "Sev kom,pesok:  ");
+    }
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"a63c01b556edfc28")==0)
+    {
+        //sprintf((td->temp_devices+i)->device_name,L"Улица:");
+        sprintf((td->temp_devices+i)->device_name,   "Ulica:          ");
+    }
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"7d3c01b556705828")==0)
+    {
+      // датчик припаянный к распред-плате тестового терминала:
+      sprintf((td->temp_devices+i)->device_name,     "test name:      ");
+    }
+  }
+}
