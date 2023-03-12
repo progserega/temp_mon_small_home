@@ -101,9 +101,19 @@ void init_wifi(void)
   ESP_LOGI(TAG, "wifi_init_sta: %d", ret);
 }
 
-void app_main(void)
+void lcdPrint(int x,int y,char*str)
 {
   qLCDData xLCDData;
+  // выводим этапы инициализации на экран:
+  sprintf(xLCDData.str,str);
+  xLCDData.x_pos = x;
+  xLCDData.y_pos = y;
+  xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+}
+
+void app_main(void)
+{
+  char buf[17];
   esp_err_t ret;
   // устанавливаем уровни логирования для отдельных модулей:
   esp_log_level_set("*", ESP_LOG_ERROR);        // set all components to ERROR level
@@ -133,10 +143,7 @@ void app_main(void)
   ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive()",__FILE__,__LINE__,__func__);xSemaphoreGive(lcd_backlight_sem);
 
   // выводим этапы инициализации на экран:
-  sprintf(xLCDData.str,"Gpio init...");
-  xLCDData.x_pos = 0;
-  xLCDData.y_pos = 0;
-  xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+  lcdPrint(0,0,"Gpio init...");
   // задержка для отображения:
   vTaskDelay(1000 / portTICK_PERIOD_MS);
   
@@ -144,10 +151,7 @@ void app_main(void)
   gpio_init();
 
   // выводим этапы инициализации на экран:
-  sprintf(xLCDData.str,"Scan 1-wire...");
-  xLCDData.x_pos = 0;
-  xLCDData.y_pos = 0;
-  xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+  lcdPrint(0,0,"Scan 1-wire...");
  
   // инициализация датчиков температуры:
   TEMPERATURE_data *td=temperature_init_devices();
@@ -155,6 +159,14 @@ void app_main(void)
   {
     ESP_LOGE(TAG,"(%s:%d): %s(): temperature_init_devices()",__FILE__,__LINE__,__func__);
     ESP_LOGI(TAG,"(%s:%d): %s(): sleep and reboot",__FILE__,__LINE__,__func__);
+    // выводим сообщение об ошибке на экран:
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    lcdPrint(0,0,"Found devices:");
+    lcdPrint(0,1,"0");
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    lcdPrint(0,0,"reboot...       ");
+    lcdPrint(0,1,"                ");
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
     reboot();
   }
   // прописываем имена устройствам:
@@ -167,16 +179,11 @@ void app_main(void)
   xTaskCreate(update_ds1820_temp_task, "update_ds1820_temp_task", 2048, td, 2, NULL);
 
   // сообщаем количество найденных устройств:
-  sprintf(xLCDData.str,"Found devices:");
-  xLCDData.x_pos = 0;
-  xLCDData.y_pos = 0;
-  xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+  lcdPrint(0,0,"Found devices:");
   ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreTake()",__FILE__,__LINE__,__func__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
-  sprintf(xLCDData.str,"%d",td->num_devices);
+  sprintf(buf,"%d",td->num_devices);
   ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive()",__FILE__,__LINE__,__func__);xSemaphoreGive(temperature_data_sem);
-  xLCDData.x_pos = 0;
-  xLCDData.y_pos = 1;
-  xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
+  lcdPrint(0,1,buf);
   // задержка для отображения:
   vTaskDelay(3000 / portTICK_PERIOD_MS);
     

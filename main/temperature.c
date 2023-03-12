@@ -116,6 +116,12 @@ TEMPERATURE_data* temperature_init_devices(void)
   }
   ESP_LOGI(TAG,"(%s:%d): %s(): Found %d device%s\n",__FILE__,__LINE__,__func__, td->num_devices, td->num_devices == 1 ? "" : "s");
 
+  if(td->num_devices==0){
+    ESP_LOGW(TAG,"(%s:%d): %s(): Not found DS1820 temperature sensors on 1-wire bus!",__FILE__,__LINE__,__func__);
+    return NULL;
+  }
+
+
   // Create DS18B20 td->devices on the 1-Wire bus
   // создаём массив структур DS1820 датчиков:
   td->devices = malloc(sizeof(DS18B20_Info)*td->num_devices);
