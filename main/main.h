@@ -1,6 +1,5 @@
 #ifndef MAIN_MAIN_H_
 #define MAIN_MAIN_H_
-//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 //---------------------------------------------------------------------
 #include <stdio.h>
 #include <string.h>
@@ -10,9 +9,6 @@
 #include "driver/gpio.h"
 #include "driver/timer.h"
 #include "driver/i2c.h"
-#include "esp_err.h"
-#include "esp_system.h"
-#include "esp_log.h"
 #include "sdkconfig.h"
 #include "i2c_user.h"
 #include "LiquidCrystal_I2C.h"
@@ -22,6 +18,11 @@
 #include "nvs_flash.h"
 #include "wifi.h"
 #include "http.h"
+#include "esp_err.h"
+#include "esp_system.h"
+
+//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#include "esp_log.h"
 //---------------------------------------------------------------------
 
 // кнопка GPIO14 (D5) - замыкает на землю:

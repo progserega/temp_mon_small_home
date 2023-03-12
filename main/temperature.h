@@ -6,11 +6,12 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
-#include "esp_log.h"
 #include "sdkconfig.h"
 #include "owb.h"
 #include "ds18b20.h"
+#include "esp_log.h"
 
+//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #define ERROR_TEMPERATURE -1000
 typedef struct {
   char device_addr[OWB_ROM_CODE_STRING_LENGTH]; // адрес устройства на шине 1-wire
