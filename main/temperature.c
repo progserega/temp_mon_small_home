@@ -207,36 +207,43 @@ void add_alias_to_temp_devices(TEMPERATURE_data *td)
 {
   for(int i=0;i<td->num_devices;i++)
   {
-    if(strcicmpL((td->temp_devices+i)->device_addr,"28A83456B513CF9")==0)
+    //if(strcicmpL((td->temp_devices+i)->device_addr,"28A83456B513CF9")==0)
+    if(strcicmpL((td->temp_devices+i)->device_addr,"f93c01b55634a828")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Окруж.воздух:");
         sprintf((td->temp_devices+i)->device_name,   "Okruj.vozduh:   ");
     }
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"28813EF41E19124")==0)
+    //else if(strcicmpL((td->temp_devices+i)->device_addr,"28813EF41E19124")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"2401191ef43e8128")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Кухня,под утепл:");
         sprintf((td->temp_devices+i)->device_name,   "Kuhnya, pesok:  ");
     }
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"2878DDDC1E19138")==0)
+    //else if(strcicmpL((td->temp_devices+i)->device_addr,"2878DDDC1E19138")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"3801191edcdd7828")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Кухня, стяжка:  ");
         sprintf((td->temp_devices+i)->device_name,   "Kuhnya, bet pol:");
     }
+    // TODO
     else if(strcicmpL((td->temp_devices+i)->device_addr,"28E04079A2193E0")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Юж комн, песок: ");
         sprintf((td->temp_devices+i)->device_name,   "Yujn komn,pesok:");
     }
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"2846779A21326")==0)
+    //else if(strcicmpL((td->temp_devices+i)->device_addr,"2846779A21326")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"260301a279670428")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Кухня, песок:   ");
         sprintf((td->temp_devices+i)->device_name,   "Kuhna, pesok:   ");
     }
+    // TODO
     else if(strcicmpL((td->temp_devices+i)->device_addr,"284FEF79A2135E")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Сев комн, песок:");
         sprintf((td->temp_devices+i)->device_name,   "Sev komn, pesok:");
     }
+    // TODO
     else if(strcicmpL((td->temp_devices+i)->device_addr,"28C34279A216394")==0)
     {
         //sprintf((td->temp_devices+i)->device_name,L"Сев ком,под утпл:");
