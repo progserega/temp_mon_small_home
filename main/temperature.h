@@ -14,10 +14,33 @@
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #define ERROR_TEMPERATURE -1000
 typedef struct {
+  int timestamp;
+  // температура хранится в приведённом виде: (int)(float*1000),
+  // т.к. температура может быть в достаточно узком диапазоне значений от -100 до +100 с 
+  // погрешностью до 0.1 C, то отдавать под неё 7 байт float - нет смысла - особенно для
+  // статистических данных
+  int temp; 
+} TEMPERATURE_stat_item;
+
+typedef struct {
   char device_addr[OWB_ROM_CODE_STRING_LENGTH]; // адрес устройства на шине 1-wire
   char device_name[17]; // символичное имя устройства (может назначаться извне)
   float temp; // последняя прочитанная температура
   int errors; // количество ошибок чтения
+
+  ///==== Статистика температуры: ====
+  // статистика за сутки:
+  TEMPERATURE_stat_item stat_day[24]; // статистика хранится в приведённом виде (int) за каждый час
+  float stat_day_max_temp;
+  float stat_day_min_temp;
+  // статистика за месяц:
+  TEMPERATURE_stat_item stat_month[30]; // статистика хранится в приведённом виде (int) за каждые сутки
+  float stat_month_max_temp;
+  float stat_month_min_temp;
+  // статистика за год:
+  TEMPERATURE_stat_item stat_year[12]; // статистика хранится в приведённом виде (int) за каждый месяц
+  float stat_year_max_temp;
+  float stat_year_min_temp;
 }TEMPERATURE_device ;
 
 typedef struct {
@@ -33,6 +56,8 @@ typedef struct {
   int num_devices;
   // массив с данными устройств, выдаваемый наверх
   TEMPERATURE_device *temp_devices;
+  // флаг актуальности внтуренних часов устройства (время обновляется по сети с ntp-сервера):
+  bool time_updated;
 }TEMPERATURE_data;
 
 // поиск всех датчиков температуры (DS1820), подключённых к шине и их инициализация:

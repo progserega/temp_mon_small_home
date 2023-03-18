@@ -1,6 +1,7 @@
 #ifndef MAIN_MAIN_H_
 #define MAIN_MAIN_H_
 //---------------------------------------------------------------------
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -21,8 +22,7 @@
 #include "http.h"
 #include "esp_err.h"
 #include "esp_system.h"
-
-//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#include "sys_time.h"
 #include "esp_log.h"
 //---------------------------------------------------------------------
 

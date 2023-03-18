@@ -29,13 +29,13 @@ static void update_ds1820_temp_task(void *arg)
   int ret;
   for (;;) {
     // обращаемся к общим данным только через семафор:
-    ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreTake(temperature_data_sem):1",__FILE__,__LINE__,__func__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
-    ESP_LOGI(TAG,"(%s:%d): %s(): call update",__FILE__,__LINE__,__func__);
+    ESP_LOGD(TAG,"%s(%d): xSemaphoreTake(temperature_data_sem):1",__func__,__LINE__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+    ESP_LOGI(TAG,"%s(%d): call update",__func__,__LINE__);
     ret=temperature_update_device_data((TEMPERATURE_data *)arg);
-    ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive(temperature_data_sem):2",__FILE__,__LINE__,__func__);xSemaphoreGive(temperature_data_sem);
+    ESP_LOGD(TAG,"%s(%d): xSemaphoreGive(temperature_data_sem):2",__func__,__LINE__);xSemaphoreGive(temperature_data_sem);
     if(ret==-1)
     {
-      ESP_LOGE(TAG,"(%s:%d): %s(): temperature_update_device_data()",__FILE__,__LINE__,__func__);
+      ESP_LOGE(TAG,"%s(%d): temperature_update_device_data()",__func__,__LINE__);
       // перезагружаем устройство:
       vTaskDelay(10000 / portTICK_PERIOD_MS);
       reboot();
@@ -74,7 +74,7 @@ void gpio_init(void)
 
 void reboot(void)
 {
-    ESP_LOGW(TAG,"(%s:%d): %s(): code call reboot()",__FILE__,__LINE__,__func__);
+    ESP_LOGW(TAG,"%s(%d): code call reboot()",__func__,__LINE__);
     printf("Restarting now.\n");
     fflush(stdout);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -116,12 +116,12 @@ void app_main(void)
   char buf[17];
   esp_err_t ret;
   // устанавливаем уровни логирования для отдельных модулей:
-  esp_log_level_set("*", ESP_LOG_ERROR);        // set all components to ERROR level
+/*  esp_log_level_set("*", ESP_LOG_ERROR);        // set all components to ERROR level
   esp_log_level_set("owb", ESP_LOG_ERROR);
   esp_log_level_set("wifi", ESP_LOG_WARN);      // enable WARN logs from WiFi stack
   esp_log_level_set("dhcpc", ESP_LOG_INFO);     // enable INFO logs from DHCP client
   esp_log_level_set("http", ESP_LOG_DEBUG);     // enable INFO logs from DHCP client
-
+*/
   lcd_string_queue = xQueueCreate(10, sizeof(qLCDData));
   lcd_backlight_queue = xQueueCreate(10, sizeof(qLCDbacklight));
   //create a queue to handle gpio event from isr
@@ -129,18 +129,18 @@ void app_main(void)
   lcd_backlight_sem = xSemaphoreCreateBinary();
   // семафор для работы с данными температуры:
   temperature_data_sem = xSemaphoreCreateBinary();
-  ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive(temperature_data_sem):2",__FILE__,__LINE__,__func__);xSemaphoreGive(temperature_data_sem);
+  ESP_LOGD(TAG,"%s(%d): xSemaphoreGive(temperature_data_sem):2",__func__,__LINE__);xSemaphoreGive(temperature_data_sem);
 
   // инициализация экрана:
   ret = i2c_ini();
-  ESP_LOGI(TAG,"(%s:%d): %s(): i2c_ini: %d",__FILE__,__LINE__,__func__, ret);
+  ESP_LOGI(TAG,"%s(%d): i2c_ini: %d",__func__,__LINE__, ret);
   lcd_init(&lcd,126,16,2,8);  // set the LCD address to 0x27 for a 16 chars and 2 line display, 8 - small font, 10 - big font
 
   // запускаем потоки работы с экраном - после инициализации экрана:
   xTaskCreate(vLCDTask, "vLCDTask", 2048, NULL, 2, NULL);
   xTaskCreate(vLCDTaskBackLight, "vLCDTaskBackLight", 2048, &lcd, 2, NULL);
   // включаем экран на таймаут:
-  ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive()",__FILE__,__LINE__,__func__);xSemaphoreGive(lcd_backlight_sem);
+  ESP_LOGD(TAG,"%s(%d): xSemaphoreGive()",__func__,__LINE__);xSemaphoreGive(lcd_backlight_sem);
 
   // выводим этапы инициализации на экран:
   lcdPrint(0,0,"Gpio init...");
@@ -157,8 +157,8 @@ void app_main(void)
   TEMPERATURE_data *td=temperature_init_devices();
   if(td == NULL)
   {
-    ESP_LOGE(TAG,"(%s:%d): %s(): temperature_init_devices()",__FILE__,__LINE__,__func__);
-    ESP_LOGI(TAG,"(%s:%d): %s(): sleep and reboot",__FILE__,__LINE__,__func__);
+    ESP_LOGE(TAG,"%s(%d): temperature_init_devices()",__func__,__LINE__);
+    ESP_LOGI(TAG,"%s(%d): sleep and reboot",__func__,__LINE__);
     // выводим сообщение об ошибке на экран:
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     lcdPrint(0,0,"Found devices:");
@@ -180,9 +180,9 @@ void app_main(void)
 
   // сообщаем количество найденных устройств:
   lcdPrint(0,0,"Found devices:");
-  ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreTake()",__FILE__,__LINE__,__func__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+  ESP_LOGD(TAG,"%s(%d): xSemaphoreTake()",__func__,__LINE__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
   sprintf(buf,"%d",td->num_devices);
-  ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive()",__FILE__,__LINE__,__func__);xSemaphoreGive(temperature_data_sem);
+  ESP_LOGD(TAG,"%s(%d): xSemaphoreGive()",__func__,__LINE__);xSemaphoreGive(temperature_data_sem);
   lcdPrint(0,1,buf);
   // задержка для отображения:
   vTaskDelay(3000 / portTICK_PERIOD_MS);
@@ -191,10 +191,24 @@ void app_main(void)
   xTaskCreate(send_ds1820_temp_to_lcd_task, "send_ds1820_temp_to_lcd_task", 2048, td, 2, NULL);
 
   // запускаем WiFi:
+  ESP_LOGI(TAG,"init wifi");
   init_wifi();
 
   // запускаем http-сервис:
+  ESP_LOGI(TAG,"create http_task");
   xTaskCreate(http_task, "http_task", 4096, td, 5, NULL);
-//  xTaskCreate(http_task, "http_task", 4096, NULL, 5, NULL);
+
+  // задержка для подключения к wifi:
+  //vTaskDelay(6000 / portTICK_PERIOD_MS);
+
+  // запускаем синхронизацию времени по сети:
+  // ждём обновления времени:
+  ESP_LOGI(TAG,"init sntp time sync");
+  if(esp_wait_sntp_sync(NTP_WAIT_INFINITY)==false){
+    ESP_LOGW(TAG,"Failed to update system time within 10s timeout");
+  }
+  else{
+    ESP_LOGI(TAG,"system time updated success.");
+    td->time_updated=true;
+  }
 }
-//------------------------------------------------

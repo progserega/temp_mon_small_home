@@ -19,13 +19,13 @@ char* append_string(char* buf, int *buf_size, char *str)
   int new_len=0;
   int buf_new_size=*buf_size;
 
-  ESP_LOGD(TAG,"(%s:%d): %s(): start: buf=%p, buf_size=%d",__FILE__,__LINE__,__func__,buf,*buf_size);
+  ESP_LOGD(TAG,"%s(%d): start: buf=%p, buf_size=%d",__func__,__LINE__,buf,*buf_size);
   // выделяем, если нужно память:
   if(*buf_size==0){
     buf_new_size=1024;
     new_buf=malloc(buf_new_size);
     if(new_buf==NULL){
-      ESP_LOGE(TAG,"(%s:%d): %s(): malloc()",__FILE__,__LINE__,__func__);
+      ESP_LOGE(TAG,"%s(%d): malloc()",__func__,__LINE__);
       *buf_size=0;
       return NULL;
     }
@@ -38,12 +38,12 @@ char* append_string(char* buf, int *buf_size, char *str)
     while(buf_new_size-1<new_len){
       buf_new_size+=1024;
     }
-    ESP_LOGD(TAG,"(%s:%d): %s(): buf_new_size=%d",__FILE__,__LINE__,__func__,buf_new_size);
+    ESP_LOGD(TAG,"%s(%d): buf_new_size=%d",__func__,__LINE__,buf_new_size);
     if(buf_new_size>*buf_size){
       // расширяем буфер:
       new_buf=realloc(buf,buf_new_size);
       if(new_buf==NULL){
-        ESP_LOGE(TAG,"(%s:%d): %s(): realloc(%d)",__FILE__,__LINE__,__func__,buf_new_size);
+        ESP_LOGE(TAG,"%s(%d): realloc(%d)",__func__,__LINE__,buf_new_size);
         if(buf)free(buf);
         return NULL;
       }
@@ -61,14 +61,14 @@ char* append_string(char* buf, int *buf_size, char *str)
 }
 char *create_json(TEMPERATURE_data* td)
 {
-#define ADDSTR(buf, size, str) buf=append_string(buf,size,str);if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
+#define ADDSTR(buf, size, str) buf=append_string(buf,size,str);if(!buf){ESP_LOGE(TAG,"%s(%d): append_string()",__func__,__LINE__);return NULL;}
   char *buf=NULL;
   int buf_size=0;
   char tmp[256];
   //buf=append_string(buf,&buf_size,"{");
-  //if(!buf){ESP_LOGE(TAG,"(%s:%d): %s(): append_string()",__FILE__,__LINE__,__func__);return NULL;}
+  //if(!buf){ESP_LOGE(TAG,"%s(%d): append_string()",__func__,__LINE__);return NULL;}
   ADDSTR(buf,&buf_size,"{");
-  ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreTake(temperature_data_sem)",__FILE__,__LINE__,__func__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+  ESP_LOGD(TAG,"%s(%d): xSemaphoreTake(temperature_data_sem)",__func__,__LINE__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
   for(int i=0;i<td->num_devices;i++)
   {
     sprintf(tmp,"\"%s\":{",(td->temp_devices+i)->device_addr);
@@ -89,7 +89,7 @@ char *create_json(TEMPERATURE_data* td)
       ADDSTR(buf,&buf_size,",");
     }
   }
-  ESP_LOGD(TAG,"(%s:%d): %s(): xSemaphoreGive(temperature_data_sem)",__FILE__,__LINE__,__func__);xSemaphoreGive(temperature_data_sem);
+  ESP_LOGD(TAG,"%s(%d): xSemaphoreGive(temperature_data_sem)",__func__,__LINE__);xSemaphoreGive(temperature_data_sem);
   ADDSTR(buf,&buf_size,"}");
   return buf;
 }
@@ -102,12 +102,12 @@ void http_task(void *pvParameters)
   char *json_data;
   int buflen = 1024;
   struct sockaddr_in servaddr, cliaddr;
-  ESP_LOGI(TAG,"(%s:%d): %s(): Create socket...",__FILE__,__LINE__,__func__);
+  ESP_LOGI(TAG,"%s(%d): Create socket...",__func__,__LINE__);
   if ( (sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0 ) {
     ESP_LOGE(TAG, "socket not created");
     vTaskDelete(NULL);
   }
-  ESP_LOGI(TAG,"(%s:%d): %s(): Socket created",__FILE__,__LINE__,__func__);
+  ESP_LOGI(TAG,"%s(%d): Socket created",__func__,__LINE__);
   memset(&servaddr, 0, sizeof(servaddr));
   //Заполнение информации о сервере
   servaddr.sin_family    = AF_INET; // IPv4
@@ -116,16 +116,16 @@ void http_task(void *pvParameters)
   //Свяжем сокет с адресом сервера
   if (bind(sockfd, (const struct sockaddr *)&servaddr,  sizeof(struct sockaddr_in)) < 0 )
   {
-    ESP_LOGE(TAG,"(%s:%d): %s(): socket not binded",__FILE__,__LINE__,__func__);
+    ESP_LOGE(TAG,"%s(%d): socket not binded",__func__,__LINE__);
     vTaskDelete(NULL);
   }
-  ESP_LOGI(TAG,"(%s:%d): %s(): socket was binded",__FILE__,__LINE__,__func__);
+  ESP_LOGI(TAG,"%s(%d): socket was binded",__func__,__LINE__);
   listen(sockfd, 5);
   while(1)
   {
     memset(&cliaddr, 0, sizeof(cliaddr));
     accept_sock = accept(sockfd, (struct sockaddr *)&cliaddr, (socklen_t *)&sockaddrsize);
-    ESP_LOGD(TAG,"(%s:%d): %s(): socket: %d",__FILE__,__LINE__,__func__, accept_sock);
+    ESP_LOGD(TAG,"%s(%d): socket: %d",__func__,__LINE__, accept_sock);
     if(accept_sock >= 0)
     {
       buf = heap_caps_malloc(1024, MALLOC_CAP_8BIT);
@@ -147,11 +147,11 @@ void http_task(void *pvParameters)
             write(accept_sock, (const unsigned char*)buf, strlen(json_header) + sizeof(index_json)-1);
             */
            // strcpy((char*)buf,json_header);
-            ESP_LOGI(TAG,"(%s:%d): %s(): create json_data",__FILE__,__LINE__,__func__);
+            ESP_LOGI(TAG,"%s(%d): create json_data",__func__,__LINE__);
             write(accept_sock, (const unsigned char*)json_header, strlen(json_header));
             json_data=create_json((TEMPERATURE_data*)pvParameters);
-            ESP_LOGD(TAG,"(%s:%d): %s(): json_data=%s",__FILE__,__LINE__,__func__,json_data);
-            if(!json_data){ESP_LOGE(TAG,"(%s:%d): %s(): create_json(TEMPERATURE_data*td)",__FILE__,__LINE__,__func__);}
+            ESP_LOGD(TAG,"%s(%d): json_data=%s",__func__,__LINE__,json_data);
+            if(!json_data){ESP_LOGE(TAG,"%s(%d): create_json(TEMPERATURE_data*td)",__func__,__LINE__);}
             else{
               write(accept_sock, (const unsigned char*)json_data,strlen(json_data));
               free(json_data);
