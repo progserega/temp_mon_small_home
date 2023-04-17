@@ -12,14 +12,14 @@
 #include "esp_log.h"
 
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
-#define ERROR_TEMPERATURE -1000
+#define ERROR_TEMPERATURE -1000000
 typedef struct {
-  int timestamp;
   // температура хранится в приведённом виде: (int)(float*1000),
   // т.к. температура может быть в достаточно узком диапазоне значений от -100 до +100 с 
   // погрешностью до 0.1 C, то отдавать под неё 7 байт float - нет смысла - особенно для
   // статистических данных
-  int temp; 
+  int min; 
+  int max; 
 } TEMPERATURE_stat_item;
 
 typedef struct {
@@ -31,16 +31,16 @@ typedef struct {
   ///==== Статистика температуры: ====
   // статистика за сутки:
   TEMPERATURE_stat_item stat_day[24]; // статистика хранится в приведённом виде (int) за каждый час
-  float stat_day_max_temp;
-  float stat_day_min_temp;
+  int stat_day_max_temp;
+  int stat_day_min_temp;
   // статистика за месяц:
-  TEMPERATURE_stat_item stat_month[30]; // статистика хранится в приведённом виде (int) за каждые сутки
-  float stat_month_max_temp;
-  float stat_month_min_temp;
+  TEMPERATURE_stat_item stat_month[31]; // статистика хранится в приведённом виде (int) за каждые сутки
+  int stat_month_max_temp;
+  int stat_month_min_temp;
   // статистика за год:
   TEMPERATURE_stat_item stat_year[12]; // статистика хранится в приведённом виде (int) за каждый месяц
-  float stat_year_max_temp;
-  float stat_year_min_temp;
+  int stat_year_max_temp;
+  int stat_year_min_temp;
 }TEMPERATURE_device ;
 
 typedef struct {

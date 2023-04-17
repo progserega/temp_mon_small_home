@@ -40,6 +40,8 @@ static void update_ds1820_temp_task(void *arg)
       vTaskDelay(10000 / portTICK_PERIOD_MS);
       reboot();
     }
+    // обновляем статистику по температуре:
+    temperature_update_device_stat((TEMPERATURE_data *)arg);
     vTaskDelay(5000 / portTICK_PERIOD_MS);
   }
 }

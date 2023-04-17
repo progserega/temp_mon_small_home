@@ -1,4 +1,5 @@
 #include "temperature.h"
+#include "sys_time.h"
 //==============================================================
 static char *TAG="temperature";
 //==============================================================
@@ -6,6 +7,82 @@ static char *TAG="temperature";
 #define DS18B20_RESOLUTION   (DS18B20_RESOLUTION_12_BIT)
 #define SAMPLE_PERIOD        (1000)   // milliseconds
 //==============================================================
+
+// обновляем статистику по текущим показаниям датчиков:
+void temperature_update_device_stat(TEMPERATURE_data *td)
+{
+  time_t now = 0;
+  struct tm timeinfo = { 0 };
+  TEMPERATURE_stat_item *cur_stat_item;
+  TEMPERATURE_device *dev;
+
+  ESP_LOGD(TAG,"%s(%d): start",__func__,__LINE__);
+
+  // проверяем, обновлено ли время - обновлять ли статистику:
+  if (!td->time_updated){
+    ESP_LOGW(TAG,"%s(%d): time not synced - skip stat update",__func__,__LINE__);
+    return -1;
+  }
+
+  time(&now);
+  localtime_r(&now, &timeinfo);
+
+  for (int i = 0; i < td->num_devices; i++)
+  {
+    dev = td->temp_devices+i;
+    // приводим к более экономной по памяти форме:
+    int cur_temp=(int)(dev->temp*1000);
+
+    // обновляем статистику за час:
+    cur_stat_item=dev->stat_day[timeinfo.tm_hour];
+    if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
+    if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
+    if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
+    if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
+    // обновляем статистику за день:
+    cur_stat_item=dev->stat_month[timeinfo.tm_mday-1]; // -1 т.к. дни начинаются не с 0, а с 1 (в отличч от часов и месяцев - см. структуру tm в /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h)
+    if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
+    if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
+    if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
+    if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
+    // обновляем статистику за месяц:
+    cur_stat_item=dev->stat_year[timeinfo.tm_mon];
+    if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
+    if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
+    if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
+    if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
+
+    // пересчитываем текущую позицию за отчётные периоды:
+    // за день:
+    for(int x=0;x<24;x++){
+      cur_stat_item=dev->stat_day[x];
+      if(cur_stat_item->max != ERROR_TEMPERATURE){
+        if(dev->stat_day_max_temp==ERROR_TEMPERATURE)dev->stat_day_max_temp=cur_stat_item->max;
+        if(cur_stat_item->max > dev->stat_day_max_temp)dev->stat_day_max_temp=cur_stat_item->max;
+      }
+      if(cur_stat_item->min != ERROR_TEMPERATURE){
+        if(dev->stat_day_min_temp==ERROR_TEMPERATURE)dev->stat_day_min_temp=cur_stat_item->min;
+        if(cur_stat_item->min < dev->stat_day_min_temp)dev->stat_day_min_temp=cur_stat_item->min;
+      }
+    }
+    // за месяц:
+    for(int x=0;x<31;x++){
+      cur_stat_item=dev->stat_month[x];
+      if(dev->stat_month_max_temp==ERROR_TEMPERATURE)dev->stat_month_max_temp=cur_stat_item->max;
+      if(dev->stat_month_min_temp==ERROR_TEMPERATURE)dev->stat_month_min_temp=cur_stat_item->min;
+      if(cur_stat_item->max > dev->stat_month_max_temp)dev->stat_month_max_temp=cur_stat_item->max;
+      if(cur_stat_item->min < dev->stat_month_min_temp)dev->stat_month_min_temp=cur_stat_item->min;
+    }
+    // за год:
+    for(int x=0;x<12;x++){
+      cur_stat_item=dev->stat_year[x];
+      if(dev->stat_year_max_temp==ERROR_TEMPERATURE)dev->stat_year_max_temp=cur_stat_item->max;
+      if(dev->stat_year_min_temp==ERROR_TEMPERATURE)dev->stat_year_min_temp=cur_stat_item->min;
+      if(cur_stat_item->max > dev->stat_year_max_temp)dev->stat_year_max_temp=cur_stat_item->max;
+      if(cur_stat_item->min < dev->stat_year_min_temp)dev->stat_year_min_temp=cur_stat_item->min;
+    }
+  }
+}
 
 int temperature_deactivate_devices(TEMPERATURE_data *td)
 {
@@ -28,22 +105,6 @@ int temperature_deactivate_devices(TEMPERATURE_data *td)
     free(td);
   }
   ESP_LOGD(TAG,"%s(%d): end",__func__,__LINE__);
-  return 0;
-}
-
-// обновляем статистику по текущим показаниям датчиков:
-int temperature_update_device_stat(TEMPERATURE_data *td)
-{
-  ESP_LOGD(TAG,"%s(%d): start",__func__,__LINE__);
-  for (int i = 0; i < td->num_devices; i++)
-  {
-    /*ds_error = ds18b20_read_temp(td->devices+i, &reading_temp);
-    if (ds_error != DS18B20_OK)
-      (td->temp_devices+i)->errors++;
-    else
-      (td->temp_devices+i)->temp=reading_temp;
-      */
-  }
   return 0;
 }
 
@@ -137,7 +198,6 @@ TEMPERATURE_data* temperature_init_devices(void)
     return NULL;
   }
 
-
   // Create DS18B20 td->devices on the 1-Wire bus
   // создаём массив структур DS1820 датчиков:
   td->devices = malloc(sizeof(DS18B20_Info)*td->num_devices);
@@ -184,9 +244,9 @@ TEMPERATURE_data* temperature_init_devices(void)
   }
   // обнуляем выделенную память:
   memset(td->temp_devices, 0, sizeof(TEMPERATURE_device)*td->num_devices);
+  reset_temperature(td);
   for(i=0; i<td->num_devices;i++)
   {
-    (td->temp_devices+i)->temp=ERROR_TEMPERATURE;
     // адрес устройства - в строку:
     owb_string_from_rom_code(*(td->device_rom_codes+i), (td->temp_devices+i)->device_addr, OWB_ROM_CODE_STRING_LENGTH);
   }
@@ -195,6 +255,39 @@ TEMPERATURE_data* temperature_init_devices(void)
   temperature_update_device_data(td);
   temperature_update_device_data(td);
   return td;
+}
+
+void reset_temperature(TEMPERATURE_data *td)
+{
+  TEMPERATURE_device *dev;
+  TEMPERATURE_stat_item *cur_stat_item;
+  for(i=0; i<td->num_devices;i++)
+  {
+    dev = td->temp_devices+i;
+    dev->temp=ERROR_TEMPERATURE;
+    dev->stat_day_max_temp=ERROR_TEMPERATURE;
+    dev->stat_day_min_temp=ERROR_TEMPERATURE;
+    dev->stat_month_max_temp=ERROR_TEMPERATURE;
+    dev->stat_month_min_temp=ERROR_TEMPERATURE;
+    dev->stat_year_max_temp=ERROR_TEMPERATURE;
+    dev->stat_year_min_temp=ERROR_TEMPERATURE;
+    // статистические данные:
+    for(int x=0;x<24;x++){
+      cur_stat_item=dev->stat_day[x];
+      cur_stat_item->min=ERROR_TEMPERATURE;
+      cur_stat_item->max=ERROR_TEMPERATURE;
+    }
+    for(int x=0;x<31;x++){
+      cur_stat_item=dev->stat_month[x];
+      cur_stat_item->min=ERROR_TEMPERATURE;
+      cur_stat_item->max=ERROR_TEMPERATURE;
+    }
+    for(int x=0;x<12;x++){
+      cur_stat_item=dev->stat_year[x];
+      cur_stat_item->min=ERROR_TEMPERATURE;
+      cur_stat_item->max=ERROR_TEMPERATURE;
+    }
+  }
 }
 
 // приведение к нижнему регистру:
