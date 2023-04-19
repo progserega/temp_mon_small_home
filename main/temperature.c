@@ -68,18 +68,26 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
     // за месяц:
     for(int x=0;x<31;x++){
       cur_stat_item=dev->stat_month+x;
-      if(dev->stat_month_max_temp==ERROR_TEMPERATURE)dev->stat_month_max_temp=cur_stat_item->max;
-      if(dev->stat_month_min_temp==ERROR_TEMPERATURE)dev->stat_month_min_temp=cur_stat_item->min;
-      if(cur_stat_item->max > dev->stat_month_max_temp)dev->stat_month_max_temp=cur_stat_item->max;
-      if(cur_stat_item->min < dev->stat_month_min_temp)dev->stat_month_min_temp=cur_stat_item->min;
+      if(cur_stat_item->max != ERROR_TEMPERATURE){
+        if(dev->stat_month_max_temp==ERROR_TEMPERATURE)dev->stat_month_max_temp=cur_stat_item->max;
+        if(cur_stat_item->max > dev->stat_month_max_temp)dev->stat_month_max_temp=cur_stat_item->max;
+      }
+      if(cur_stat_item->min != ERROR_TEMPERATURE){
+        if(dev->stat_month_min_temp==ERROR_TEMPERATURE)dev->stat_month_min_temp=cur_stat_item->min;
+        if(cur_stat_item->min < dev->stat_month_min_temp)dev->stat_month_min_temp=cur_stat_item->min;
+      }
     }
     // за год:
     for(int x=0;x<12;x++){
       cur_stat_item=dev->stat_year+x;
-      if(dev->stat_year_max_temp==ERROR_TEMPERATURE)dev->stat_year_max_temp=cur_stat_item->max;
-      if(dev->stat_year_min_temp==ERROR_TEMPERATURE)dev->stat_year_min_temp=cur_stat_item->min;
-      if(cur_stat_item->max > dev->stat_year_max_temp)dev->stat_year_max_temp=cur_stat_item->max;
-      if(cur_stat_item->min < dev->stat_year_min_temp)dev->stat_year_min_temp=cur_stat_item->min;
+      if(cur_stat_item->max != ERROR_TEMPERATURE){
+        if(dev->stat_year_max_temp==ERROR_TEMPERATURE)dev->stat_year_max_temp=cur_stat_item->max;
+        if(cur_stat_item->max > dev->stat_year_max_temp)dev->stat_year_max_temp=cur_stat_item->max;
+      }
+      if(cur_stat_item->min != ERROR_TEMPERATURE){
+        if(dev->stat_year_min_temp==ERROR_TEMPERATURE)dev->stat_year_min_temp=cur_stat_item->min;
+        if(cur_stat_item->min < dev->stat_year_min_temp)dev->stat_year_min_temp=cur_stat_item->min;
+      }
     }
   }
   return 0;

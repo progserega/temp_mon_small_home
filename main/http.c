@@ -65,24 +65,121 @@ char *create_json(TEMPERATURE_data* td)
   char *buf=NULL;
   int buf_size=0;
   char tmp[256];
+  bool list_empty;
+  TEMPERATURE_device *dev;
+  TEMPERATURE_stat_item *cur_stat_item;
   //buf=append_string(buf,&buf_size,"{");
   //if(!buf){ESP_LOGE(TAG,"%s(%d): append_string()",__func__,__LINE__);return NULL;}
   ADDSTR(buf,&buf_size,"{");
   ESP_LOGD(TAG,"%s(%d): xSemaphoreTake(temperature_data_sem)",__func__,__LINE__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
   for(int i=0;i<td->num_devices;i++)
   {
-    sprintf(tmp,"\"%s\":{",(td->temp_devices+i)->device_addr);
+    dev = td->temp_devices+i;
+    sprintf(tmp,"\"%s\":{",dev->device_addr);
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"name\":\"%s\",",(td->temp_devices+i)->device_name);
+    sprintf(tmp,"\"name\":\"%s\",",dev->device_name);
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"addr\":\"%s\",",(td->temp_devices+i)->device_addr);
+    sprintf(tmp,"\"addr\":\"%s\",",dev->device_addr);
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"current_temperature\":%3.3f,",(td->temp_devices+i)->temp);
+    sprintf(tmp,"\"current_temperature\":%3.3f,",dev->temp);
     ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"\"stat_day_max_temp\":%3.3f,",(float)dev->stat_day_max_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"\"stat_day_min_temp\":%3.3f,",(float)dev->stat_day_min_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"\"stat_month_max_temp\":%3.3f,",(float)dev->stat_month_max_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"\"stat_month_min_temp\":%3.3f,",(float)dev->stat_month_min_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"\"stat_year_max_temp\":%3.3f,",(float)dev->stat_year_max_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"\"stat_year_min_temp\":%3.3f,",(float)dev->stat_year_min_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"\"errors\":%d,",dev->errors);
+    ADDSTR(buf,&buf_size,tmp);
+    // статистика:
+    ADDSTR(buf,&buf_size,"\"statistics\":{");
+
+    // статитсика за сутки:
+    ADDSTR(buf,&buf_size,"\"last_day_by_hours\":{");
+    list_empty=true;
+    for(int x=0;x<24;x++){
+      cur_stat_item=dev->stat_day+x;
+      if (cur_stat_item->min==ERROR_TEMPERATURE || cur_stat_item->max==ERROR_TEMPERATURE)continue;
+
+      if(!list_empty){
+        ADDSTR(buf,&buf_size,",");
+      }
+
+      sprintf(tmp,"\"%d\": {",x);
+      ADDSTR(buf,&buf_size,tmp);
+
+      sprintf(tmp,"\"min\": %f,",(float)cur_stat_item->min / 1000);
+      ADDSTR(buf,&buf_size,tmp);
+      sprintf(tmp,"\"max\": %f",(float)cur_stat_item->max / 1000);
+      ADDSTR(buf,&buf_size,tmp);
+
+      ADDSTR(buf,&buf_size,"}");
+      list_empty=false;
+    }
+    // закрываем объект статистики "день":
+    ADDSTR(buf,&buf_size,"},");
+
+    // статитсика за месяц:
+    ADDSTR(buf,&buf_size,"\"last_month_by_days\":{");
+    list_empty=true;
+    for(int x=0;x<31;x++){
+      cur_stat_item=dev->stat_month+x;
+      if (cur_stat_item->min==ERROR_TEMPERATURE || cur_stat_item->max==ERROR_TEMPERATURE)continue;
+
+      if(!list_empty){
+        ADDSTR(buf,&buf_size,",");
+      }
+
+      sprintf(tmp,"\"%d\": {",x+1);
+      ADDSTR(buf,&buf_size,tmp);
+
+      sprintf(tmp,"\"min\": %f,",(float)cur_stat_item->min / 1000);
+      ADDSTR(buf,&buf_size,tmp);
+      sprintf(tmp,"\"max\": %f",(float)cur_stat_item->max / 1000);
+      ADDSTR(buf,&buf_size,tmp);
+
+      ADDSTR(buf,&buf_size,"}");
+      list_empty=false;
+    }
+    // закрываем объект статистики "месяц":
+    ADDSTR(buf,&buf_size,"},");
+
+    // статитсика за год:
+    ADDSTR(buf,&buf_size,"\"last_year_by_months\":{");
+    list_empty=true;
+    for(int x=0;x<12;x++){
+      cur_stat_item=dev->stat_year+x;
+      if (cur_stat_item->min==ERROR_TEMPERATURE || cur_stat_item->max==ERROR_TEMPERATURE)continue;
+
+      if(!list_empty){
+        ADDSTR(buf,&buf_size,",");
+      }
+
+      sprintf(tmp,"\"%d\": {",x+1);
+      ADDSTR(buf,&buf_size,tmp);
+
+      sprintf(tmp,"\"min\": %f,",(float)cur_stat_item->min / 1000);
+      ADDSTR(buf,&buf_size,tmp);
+      sprintf(tmp,"\"max\": %f",(float)cur_stat_item->max / 1000);
+      ADDSTR(buf,&buf_size,tmp);
+
+      ADDSTR(buf,&buf_size,"}");
+      list_empty=false;
+    }
+    // закрываем объект статистики "год":
+    ADDSTR(buf,&buf_size,"}");
+
+    // закрываем объект статистики:
     // последний объект без запятой после себя:
-    sprintf(tmp,"\"errors\":%d",(td->temp_devices+i)->errors);
-    ADDSTR(buf,&buf_size,tmp);
-    // закрываем объект:
+    ADDSTR(buf,&buf_size,"}");
+
+    // закрываем объект датчика:
     ADDSTR(buf,&buf_size,"}");
     // последний объект без запятой после себя:
     if(i<td->num_devices-1){
