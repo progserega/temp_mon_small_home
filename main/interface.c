@@ -92,11 +92,10 @@ void gpio_task(void *td)
   //                vTaskDelay(500 / portTICK_PERIOD_MS);
                   // вторая строка:
                   ESP_LOGD(TAG,"%s(%d): xSemaphoreTake()",__func__,__LINE__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
-                  int error=(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->errors;
-                  if(error>9999)error=9999;
-                  sprintf(xLCDData.str,"%2.2f C,err=%d",
+                  sprintf(xLCDData.str,"%2.2fC (%.0f/%.0f)   ",
                     (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->temp,
-                    error
+                    (float)(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->stat_month_min_temp/1000,
+                    (float)(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->stat_month_max_temp/1000
                     );
                   xLCDData.x_pos = 0;
                   xLCDData.y_pos = 1;
@@ -183,11 +182,10 @@ void send_ds1820_temp_to_lcd_task(void *td)
       xQueueSendToBack(lcd_string_queue, &xLCDData, 0);
 
       ESP_LOGD(TAG,"%s(%d): xSemaphoreTake()",__func__,__LINE__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
-      int error=(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->errors;
-      if(error>9999)error=9999;
-      sprintf(xLCDData.str,"%2.2f C,err=%d",
+      sprintf(xLCDData.str,"%2.2fC (%.0f/%.0f)     ",
         (((TEMPERATURE_data*)td)->temp_devices+current_device_index)->temp,
-        error
+        (float)(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->stat_month_min_temp/1000,
+        (float)(((TEMPERATURE_data*)td)->temp_devices+current_device_index)->stat_month_max_temp/1000
         );
       ESP_LOGD(TAG,"%s(%d): xSemaphoreGive()",__func__,__LINE__);xSemaphoreGive(temperature_data_sem);
       //xLCDData.str = buf;
