@@ -9,7 +9,7 @@ static char *TAG="temperature";
 //==============================================================
 
 // обновляем статистику по текущим показаниям датчиков:
-void temperature_update_device_stat(TEMPERATURE_data *td)
+int temperature_update_device_stat(TEMPERATURE_data *td)
 {
   time_t now = 0;
   struct tm timeinfo = { 0 };
@@ -34,19 +34,19 @@ void temperature_update_device_stat(TEMPERATURE_data *td)
     int cur_temp=(int)(dev->temp*1000);
 
     // обновляем статистику за час:
-    cur_stat_item=dev->stat_day[timeinfo.tm_hour];
+    cur_stat_item=dev->stat_day+timeinfo.tm_hour;
     if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
     if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
     if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
     if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
     // обновляем статистику за день:
-    cur_stat_item=dev->stat_month[timeinfo.tm_mday-1]; // -1 т.к. дни начинаются не с 0, а с 1 (в отличч от часов и месяцев - см. структуру tm в /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h)
+    cur_stat_item=dev->stat_month+timeinfo.tm_mday-1; // -1 т.к. дни начинаются не с 0, а с 1 (в отличч от часов и месяцев - см. структуру tm в /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h)
     if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
     if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
     if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
     if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
     // обновляем статистику за месяц:
-    cur_stat_item=dev->stat_year[timeinfo.tm_mon];
+    cur_stat_item=dev->stat_year+timeinfo.tm_mon;
     if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
     if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
     if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
@@ -55,7 +55,7 @@ void temperature_update_device_stat(TEMPERATURE_data *td)
     // пересчитываем текущую позицию за отчётные периоды:
     // за день:
     for(int x=0;x<24;x++){
-      cur_stat_item=dev->stat_day[x];
+      cur_stat_item=dev->stat_day+x;
       if(cur_stat_item->max != ERROR_TEMPERATURE){
         if(dev->stat_day_max_temp==ERROR_TEMPERATURE)dev->stat_day_max_temp=cur_stat_item->max;
         if(cur_stat_item->max > dev->stat_day_max_temp)dev->stat_day_max_temp=cur_stat_item->max;
@@ -67,7 +67,7 @@ void temperature_update_device_stat(TEMPERATURE_data *td)
     }
     // за месяц:
     for(int x=0;x<31;x++){
-      cur_stat_item=dev->stat_month[x];
+      cur_stat_item=dev->stat_month+x;
       if(dev->stat_month_max_temp==ERROR_TEMPERATURE)dev->stat_month_max_temp=cur_stat_item->max;
       if(dev->stat_month_min_temp==ERROR_TEMPERATURE)dev->stat_month_min_temp=cur_stat_item->min;
       if(cur_stat_item->max > dev->stat_month_max_temp)dev->stat_month_max_temp=cur_stat_item->max;
@@ -75,13 +75,14 @@ void temperature_update_device_stat(TEMPERATURE_data *td)
     }
     // за год:
     for(int x=0;x<12;x++){
-      cur_stat_item=dev->stat_year[x];
+      cur_stat_item=dev->stat_year+x;
       if(dev->stat_year_max_temp==ERROR_TEMPERATURE)dev->stat_year_max_temp=cur_stat_item->max;
       if(dev->stat_year_min_temp==ERROR_TEMPERATURE)dev->stat_year_min_temp=cur_stat_item->min;
       if(cur_stat_item->max > dev->stat_year_max_temp)dev->stat_year_max_temp=cur_stat_item->max;
       if(cur_stat_item->min < dev->stat_year_min_temp)dev->stat_year_min_temp=cur_stat_item->min;
     }
   }
+  return 0;
 }
 
 int temperature_deactivate_devices(TEMPERATURE_data *td)
@@ -261,7 +262,7 @@ void reset_temperature(TEMPERATURE_data *td)
 {
   TEMPERATURE_device *dev;
   TEMPERATURE_stat_item *cur_stat_item;
-  for(i=0; i<td->num_devices;i++)
+  for(int i=0; i<td->num_devices;i++)
   {
     dev = td->temp_devices+i;
     dev->temp=ERROR_TEMPERATURE;
@@ -273,17 +274,17 @@ void reset_temperature(TEMPERATURE_data *td)
     dev->stat_year_min_temp=ERROR_TEMPERATURE;
     // статистические данные:
     for(int x=0;x<24;x++){
-      cur_stat_item=dev->stat_day[x];
+      cur_stat_item=dev->stat_day+x;
       cur_stat_item->min=ERROR_TEMPERATURE;
       cur_stat_item->max=ERROR_TEMPERATURE;
     }
     for(int x=0;x<31;x++){
-      cur_stat_item=dev->stat_month[x];
+      cur_stat_item=dev->stat_month+x;
       cur_stat_item->min=ERROR_TEMPERATURE;
       cur_stat_item->max=ERROR_TEMPERATURE;
     }
     for(int x=0;x<12;x++){
-      cur_stat_item=dev->stat_year[x];
+      cur_stat_item=dev->stat_year+x;
       cur_stat_item->min=ERROR_TEMPERATURE;
       cur_stat_item->max=ERROR_TEMPERATURE;
     }

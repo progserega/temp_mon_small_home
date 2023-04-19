@@ -67,6 +67,10 @@ int temperature_deactivate_devices(TEMPERATURE_data *td);
 int temperature_update_device_data(TEMPERATURE_data *td);
 // прописывание имён датчикам:
 void add_alias_to_temp_devices(TEMPERATURE_data *td);
+// обновление статистики температуры - суточной, месяцной, за год:
+int temperature_update_device_stat(TEMPERATURE_data *td);
+// заполнение структур температур ошибочными значениями:
+void reset_temperature(TEMPERATURE_data *td);
 //---------------------------------------------------------------------
 
 #endif /* TEMPERATURE_H_ */

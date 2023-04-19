@@ -41,7 +41,9 @@ static void update_ds1820_temp_task(void *arg)
       reboot();
     }
     // обновляем статистику по температуре:
-    temperature_update_device_stat((TEMPERATURE_data *)arg);
+    if (temperature_update_device_stat((TEMPERATURE_data *)arg) == -1){
+      ESP_LOGW(TAG,"%s(%d): error temperature_update_device_stat()",__func__,__LINE__);
+    }
     vTaskDelay(5000 / portTICK_PERIOD_MS);
   }
 }
@@ -118,12 +120,17 @@ void app_main(void)
   char buf[17];
   esp_err_t ret;
   // устанавливаем уровни логирования для отдельных модулей:
-/*  esp_log_level_set("*", ESP_LOG_ERROR);        // set all components to ERROR level
+  esp_log_level_set("*", ESP_LOG_ERROR);        // set all components to ERROR level
   esp_log_level_set("owb", ESP_LOG_ERROR);
   esp_log_level_set("wifi", ESP_LOG_WARN);      // enable WARN logs from WiFi stack
-  esp_log_level_set("dhcpc", ESP_LOG_INFO);     // enable INFO logs from DHCP client
-  esp_log_level_set("http", ESP_LOG_DEBUG);     // enable INFO logs from DHCP client
-*/
+  esp_log_level_set("dhcpc", ESP_LOG_WARN);     // enable INFO logs from DHCP client
+  // локальные модули:
+  esp_log_level_set("http", ESP_LOG_INFO);     // enable INFO logs from DHCP client
+  esp_log_level_set("temperature", ESP_LOG_INFO);     
+  esp_log_level_set("interface", ESP_LOG_INFO);     
+  esp_log_level_set("main", ESP_LOG_INFO);     
+  esp_log_level_set("sys_time", ESP_LOG_DEBUG);     
+
   lcd_string_queue = xQueueCreate(10, sizeof(qLCDData));
   lcd_backlight_queue = xQueueCreate(10, sizeof(qLCDbacklight));
   //create a queue to handle gpio event from isr
