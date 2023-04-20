@@ -42,6 +42,13 @@ menu "temp_mon_small_home Configuration"
         help
             When button press - autochange show temp cycle (for all sensors) is freeze and show only current sensor. After this timeout auto cycle will be continue.
 
+    config PERIOD_HOURS_SAVE_STAT_TO_FLASH
+        int "Periods in hours, when save stat data to internal flash"
+        range 1 24
+        default 3
+        help
+            Programm collect temperature statistics and save it to internal flash (restore from flash at each device boot). For example if set 3 - then each 3 hour stat-data will be save to flash: 3, 6, 9 ... hours of time.
+
     config BLINK_GPIO
         int "Blink GPIO number"
         range 0 48

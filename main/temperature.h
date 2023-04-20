@@ -71,6 +71,10 @@ void add_alias_to_temp_devices(TEMPERATURE_data *td);
 int temperature_update_device_stat(TEMPERATURE_data *td);
 // заполнение структур температур ошибочными значениями:
 void reset_temperature(TEMPERATURE_data *td);
+// сохранение на внутренний flash-носитель статистических данных:
+int temperature_stat_save_to_flash(TEMPERATURE_data *td);
+// восстановление с внутреннего flash-носителя статистических данных:
+int temperature_stat_load_from_flash(TEMPERATURE_data *td);
 //---------------------------------------------------------------------
 
 #endif /* TEMPERATURE_H_ */

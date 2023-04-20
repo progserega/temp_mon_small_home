@@ -1,4 +1,5 @@
 #include "main.h"
+#include "spiffs.h"
 //------------------------------------------------
 static char *TAG="main";
 //------------------------------------------------
@@ -118,18 +119,21 @@ void lcdPrint(int x,int y,char*str)
 void app_main(void)
 {
   char buf[17];
+  esp_vfs_spiffs_conf_t conf;
   esp_err_t ret;
   // устанавливаем уровни логирования для отдельных модулей:
   esp_log_level_set("*", ESP_LOG_ERROR);        // set all components to ERROR level
   esp_log_level_set("owb", ESP_LOG_ERROR);
   esp_log_level_set("wifi", ESP_LOG_WARN);      // enable WARN logs from WiFi stack
   esp_log_level_set("dhcpc", ESP_LOG_WARN);     // enable INFO logs from DHCP client
-  // локальные модули:
+  // локальные модули - INFO:
   esp_log_level_set("http", ESP_LOG_INFO);     // enable INFO logs from DHCP client
-  esp_log_level_set("temperature", ESP_LOG_INFO);     
-  esp_log_level_set("interface", ESP_LOG_INFO);     
-  esp_log_level_set("main", ESP_LOG_INFO);     
+  // локальные отлаживаемые модули:
+  esp_log_level_set("temperature", ESP_LOG_DEBUG);     
+  esp_log_level_set("interface", ESP_LOG_DEBUG);     
+  esp_log_level_set("main", ESP_LOG_DEBUG);     
   esp_log_level_set("sys_time", ESP_LOG_DEBUG);     
+  esp_log_level_set("spiffs", ESP_LOG_DEBUG);     
 
   lcd_string_queue = xQueueCreate(10, sizeof(qLCDData));
   lcd_backlight_queue = xQueueCreate(10, sizeof(qLCDbacklight));
@@ -180,6 +184,27 @@ void app_main(void)
   }
   // прописываем имена устройствам:
   add_alias_to_temp_devices(td);
+
+  // выводим информацию по флешке:
+  spiffs_init(&conf, td->num_devices*3);
+  if(spiffs_mount(&conf) == -1){
+    ESP_LOGE(TAG,"error spiffs_mount()");
+  }else{
+    if(spiffs_info(&conf) == -1){
+      ESP_LOGE(TAG,"error spiffs_info()");
+    }
+    if(spiffs_umount(&conf) == -1){
+      ESP_LOGE(TAG,"error spiffs_umount()");
+    }
+  }
+
+  // подгружаем данные с внутреннего flash:
+  if(temperature_stat_load_from_flash(td) == -1){
+    ESP_LOGE(TAG,"error load temperature stat from flash: temperature_stat_load_from_flash()");
+  }
+  else{
+    ESP_LOGI(TAG,"success load temperature stat from flash by temperature_stat_load_from_flash()");
+  }
 
   //start gpio task
   xTaskCreate(gpio_task, "gpio_task", 2048, td, 10, NULL);
