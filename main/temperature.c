@@ -97,7 +97,7 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
   if(old_hour!=timeinfo.tm_hour){
     // с прошлого запуска изменился час, проверяем периодичность:
     if ((timeinfo.tm_hour+1)%CONFIG_PERIOD_HOURS_SAVE_STAT_TO_FLASH==0){
-      ESP_LOGI(TAG,"start save to flash at %d hour (period in config set as: %d)",timeinfo.tm_hour+1,CONFIG_PERIOD_HOURS_SAVE_STAT_TO_FLASH);
+      ESP_LOGI(TAG,"start save to flash at %d hour (period in config set as: %d)",timeinfo.tm_hour,CONFIG_PERIOD_HOURS_SAVE_STAT_TO_FLASH);
       if(temperature_stat_save_to_flash(td)==-1){
         ESP_LOGE(TAG,"error temperature_save_to_flash()");
       }
@@ -110,34 +110,37 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
 int temperature_stat_save_to_flash(TEMPERATURE_data *td)
 {
   esp_vfs_spiffs_conf_t conf;
-  TEMPERATURE_stat_item *cur_stat_item;
   TEMPERATURE_device *dev;
-  char file_name[40];
+  char file_name[120];
   int buf_size;
-  int day[24*2], month[31*2], year[12*2];
+  int32_t stat[62];
   int x;
 
   ESP_LOGD(TAG,"%s(%d): start",__func__,__LINE__);
   // инициируем и монтируем флешку:
   spiffs_init(&conf,td->num_devices*3); // 3 - количество файлов статистики для одного устройства
+
   if(spiffs_mount(&conf) == -1){
     ESP_LOGE(TAG,"error spiffs_mount()");
     return -1;
   }
+
   // сохраняем все структуры для всех датчиков:
   for (int i = 0; i < td->num_devices; i++)
   {
     dev = td->temp_devices+i;
-
     // сохраняем статистику за сутки:
     sprintf(file_name,"%s_day.stat",dev->device_addr);
     // формируем буфер с данными статистики за сутки:
-    buf_size=sizeof(int)*24;
+    buf_size=24*2*sizeof(int32_t);
+    ESP_LOGD(TAG,"(%d)",__LINE__);
     for(x=0;x<24;x++){
-      day[x*2]=(dev->stat_day+x)->min;
-      day[x*2+1]=(dev->stat_day+x)->max;
+      stat[x*2]=(dev->stat_day+x)->min;
+      stat[x*2+1]=(dev->stat_day+x)->max;
+      ESP_LOGD(TAG,"hour=%d, min=%d, max=%d",x,stat[x*2],stat[x*2+1]);
     }
-    if(spiffs_save_buf_to_file(file_name,day,buf_size)){
+    ESP_LOGI(TAG,"write %d bytes to file: %s",buf_size,file_name);
+    if(spiffs_save_buf_to_file(file_name,stat,buf_size)){
       ESP_LOGE(TAG,"error spiffs_save_buf_to_file()");
       return -1;
     }
@@ -145,12 +148,13 @@ int temperature_stat_save_to_flash(TEMPERATURE_data *td)
     // сохраняем статистику за месяц:
     sprintf(file_name,"%s_month.stat",dev->device_addr);
     // формируем буфер с данными статистики за сутки:
-    buf_size=sizeof(int)*24;
-    for(x=0;x<24;x++){
-      month[x*2]=(dev->stat_month+x)->min;
-      month[x*2+1]=(dev->stat_month+x)->max;
+    buf_size=31*2*sizeof(int32_t);
+    for(x=0;x<31;x++){
+      stat[x*2]=(dev->stat_month+x)->min;
+      stat[x*2+1]=(dev->stat_month+x)->max;
     }
-    if(spiffs_save_buf_to_file(file_name,month,buf_size)){
+    ESP_LOGI(TAG,"write %d bytes to file: %s",buf_size,file_name);
+    if(spiffs_save_buf_to_file(file_name,stat,buf_size)){
       ESP_LOGE(TAG,"error spiffs_save_buf_to_file()");
       return -1;
     }
@@ -158,12 +162,13 @@ int temperature_stat_save_to_flash(TEMPERATURE_data *td)
     // сохраняем статистику за год:
     sprintf(file_name,"%s_year.stat",dev->device_addr);
     // формируем буфер с данными статистики за сутки:
-    buf_size=sizeof(int)*24;
-    for(x=0;x<24;x++){
-      year[x*2]=(dev->stat_year+x)->min;
-      year[x*2+1]=(dev->stat_year+x)->max;
+    buf_size=12*2*sizeof(int32_t);
+    for(x=0;x<12;x++){
+      stat[x*2]=(dev->stat_year+x)->min;
+      stat[x*2+1]=(dev->stat_year+x)->max;
     }
-    if(spiffs_save_buf_to_file(file_name,year,buf_size)){
+    ESP_LOGI(TAG,"write %d bytes to file: %s",buf_size,file_name);
+    if(spiffs_save_buf_to_file(file_name,stat,buf_size)){
       ESP_LOGE(TAG,"error spiffs_save_buf_to_file()");
       return -1;
     }
@@ -180,8 +185,9 @@ int temperature_stat_load_from_flash(TEMPERATURE_data *td)
 {
   esp_vfs_spiffs_conf_t conf;
   TEMPERATURE_device *dev;
-  char file_name[40];
-  int *stat;
+  char file_name[255];
+  int32_t *ret, *stat;
+  int stat_size;
   int x;
 
   ESP_LOGD(TAG,"%s(%d): start",__func__,__LINE__);
@@ -195,47 +201,70 @@ int temperature_stat_load_from_flash(TEMPERATURE_data *td)
   for (int i = 0; i < td->num_devices; i++)
   {
     dev = td->temp_devices+i;
+
     // загружаем дневные данные статистики:
     sprintf(file_name,"%s_day.stat",dev->device_addr);
-    stat = spiffs_get_file_as_buf(file_name);
-    if (stat == NULL){
+    ret = (int32_t*)spiffs_get_file_as_buf(file_name);
+    if (ret == NULL){
       ESP_LOGE(TAG,"error spiffs_get_file_as_buf(%s)",file_name);
     }
     else{
-      ESP_LOGI(TAG,"load day stat from file: %s",file_name);
+      stat_size=(*ret)/sizeof(int32_t);
+      stat=ret+1;
+      ESP_LOGI(TAG,"load %d bytes (%d items) stat-data from file: %s",stat_size*sizeof(int32_t),stat_size,file_name);
       for(x=0;x<24;x++){
+        if (stat+x*2+1 >= stat+stat_size){
+          ESP_LOGW(TAG,"(%d): index (x=%d) over file data - overflow! skip!",__LINE__,x);
+          break;
+        }
         (dev->stat_day+x)->min = *(stat+x*2);
         (dev->stat_day+x)->max = *(stat+x*2+1);
       }
     }
+    free(ret);
+ 
     // загружаем данные статистики за месяц:
     sprintf(file_name,"%s_month.stat",dev->device_addr);
-    stat = spiffs_get_file_as_buf(file_name);
-    if (stat == NULL){
+    ret = (int32_t*)spiffs_get_file_as_buf(file_name);
+    if (ret == NULL){
       ESP_LOGE(TAG,"error spiffs_get_file_as_buf(%s)",file_name);
     }
     else{
-      ESP_LOGI(TAG,"load month stat from file: %s",file_name);
-      for(x=0;x<24;x++){
+      stat_size=(*ret)/sizeof(int32_t);
+      stat=ret+1;
+      ESP_LOGI(TAG,"load %d bytes (%d items) stat-data from file: %s",stat_size*sizeof(int32_t),stat_size,file_name);
+      for(x=0;x<31;x++){
+        if (stat+x*2+1 >= stat+stat_size){
+          ESP_LOGW(TAG,"(%d): index (x=%d) over file data - overflow! skip!",__LINE__,x);
+          break;
+        }
         (dev->stat_month+x)->min = *(stat+x*2);
         (dev->stat_month+x)->max = *(stat+x*2+1);
       }
     }
+    free(ret);
+   
     // загружаем данные статистики за год:
     sprintf(file_name,"%s_year.stat",dev->device_addr);
-    stat = spiffs_get_file_as_buf(file_name);
-    if (stat == NULL){
+    ret = (int32_t*)spiffs_get_file_as_buf(file_name);
+    if (ret == NULL){
       ESP_LOGE(TAG,"error spiffs_get_file_as_buf(%s)",file_name);
     }
     else{
-      ESP_LOGI(TAG,"load year stat from file: %s",file_name);
-      for(x=0;x<24;x++){
+      stat_size=(*ret)/sizeof(int32_t);
+      stat=ret+1;
+      ESP_LOGI(TAG,"load %d bytes (%d items) stat-data from file: %s",stat_size*sizeof(int32_t),stat_size,file_name);
+      for(x=0;x<12;x++){
+        if (stat+x*2+1 >= stat+stat_size){
+          ESP_LOGW(TAG,"(%d): index (x=%d) over file data - overflow! skip!",__LINE__,x);
+          break;
+        }
         (dev->stat_year+x)->min = *(stat+x*2);
         (dev->stat_year+x)->max = *(stat+x*2+1);
       }
     }
+    free(ret);
   }
-
   if(spiffs_umount(&conf) == -1){
     ESP_LOGE(TAG,"error spiffs_umount()");
     return -1;
