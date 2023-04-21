@@ -10,6 +10,8 @@ extern xQueueHandle gpio_evt_queue;
 extern xQueueHandle lcd_string_queue;
 // семафор включения подсветки:
 extern SemaphoreHandle_t lcd_backlight_sem;
+// семафор обращения к данным:
+extern SemaphoreHandle_t temperature_data_sem;
 // очередь включения подсветки экрана:
 extern xQueueHandle lcd_backlight_queue;
 // структура для экрана lcd1620:
@@ -28,6 +30,8 @@ static void gpio_isr_handler(void *arg)
 static void update_ds1820_temp_task(void *arg)
 {
   int ret;
+  //FIXME
+  //uxTaskGetStackHighWaterMark(NULL);
   for (;;) {
     // обращаемся к общим данным только через семафор:
     ESP_LOGD(TAG,"%s(%d): xSemaphoreTake(temperature_data_sem):1",__func__,__LINE__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
@@ -124,14 +128,15 @@ void app_main(void)
   // устанавливаем уровни логирования для отдельных модулей:
   esp_log_level_set("*", ESP_LOG_ERROR);        // set all components to ERROR level
   esp_log_level_set("owb", ESP_LOG_ERROR);
+  esp_log_level_set("efuse", ESP_LOG_ERROR);
   esp_log_level_set("wifi", ESP_LOG_WARN);      // enable WARN logs from WiFi stack
   esp_log_level_set("dhcpc", ESP_LOG_WARN);     // enable INFO logs from DHCP client
   // локальные модули - INFO:
   esp_log_level_set("http", ESP_LOG_INFO);     // enable INFO logs from DHCP client
+  esp_log_level_set("main", ESP_LOG_INFO);     
+  esp_log_level_set("interface", ESP_LOG_INFO);     
   // локальные отлаживаемые модули:
   esp_log_level_set("temperature", ESP_LOG_DEBUG);     
-  esp_log_level_set("interface", ESP_LOG_DEBUG);     
-  esp_log_level_set("main", ESP_LOG_DEBUG);     
   esp_log_level_set("sys_time", ESP_LOG_DEBUG);     
   esp_log_level_set("spiffs", ESP_LOG_DEBUG);     
 
@@ -197,7 +202,6 @@ void app_main(void)
       ESP_LOGE(TAG,"error spiffs_umount()");
     }
   }
-
   // подгружаем данные с внутреннего flash:
   if(temperature_stat_load_from_flash(td) == -1){
     ESP_LOGE(TAG,"error load temperature stat from flash: temperature_stat_load_from_flash()");
@@ -210,7 +214,7 @@ void app_main(void)
   xTaskCreate(gpio_task, "gpio_task", 2048, td, 10, NULL);
 
   // запускаем поток обновления температуры:
-  xTaskCreate(update_ds1820_temp_task, "update_ds1820_temp_task", 2048, td, 2, NULL);
+  xTaskCreate(update_ds1820_temp_task, "update_ds1820_temp_task", 8192, td, 2, NULL);
 
   // сообщаем количество найденных устройств:
   lcdPrint(0,0,"Found devices:");
