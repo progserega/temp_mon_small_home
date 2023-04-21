@@ -19,5 +19,9 @@ extern SemaphoreHandle_t temperature_data_sem;
 
 //-------------------------------------------------------------
 void http_task(void *pvParameters);
+// формируем страничку index.json со статистикой для машины:
+char *create_json(TEMPERATURE_data* td);
+// формируем страничку index.html со статистикой для человека:
+char* create_index(TEMPERATURE_data *td);
 //-------------------------------------------------------------
 #endif /* MAIN_HTTP_H_ */
