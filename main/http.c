@@ -1,4 +1,5 @@
 #include "http.h"
+#include "sys_time.h"
 //-------------------------------------------------------------
 static const char *TAG = "http";
 //-------------------------------------------------------------
@@ -139,6 +140,7 @@ char *create_json(TEMPERATURE_data* td)
 #define ADDSTR(buf, size, str) buf=append_string(buf,size,str);if(!buf){ESP_LOGE(TAG,"%s(%d): append_string()",__func__,__LINE__);return NULL;}
   char *buf=NULL;
   int buf_size=0;
+  int x;
   char tmp[256];
   bool list_empty;
   TEMPERATURE_device *dev;
@@ -146,6 +148,7 @@ char *create_json(TEMPERATURE_data* td)
   //buf=append_string(buf,&buf_size,"{");
   //if(!buf){ESP_LOGE(TAG,"%s(%d): append_string()",__func__,__LINE__);return NULL;}
   ADDSTR(buf,&buf_size,"{");
+  ADDSTR(buf,&buf_size,"\"temp_sensors\":{");
   ESP_LOGD(TAG,"%s(%d): xSemaphoreTake(temperature_data_sem)",__func__,__LINE__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
   for(int i=0;i<td->num_devices;i++)
   {
@@ -178,7 +181,7 @@ char *create_json(TEMPERATURE_data* td)
     // статитсика за сутки:
     ADDSTR(buf,&buf_size,"\"last_day_by_hours\":{");
     list_empty=true;
-    for(int x=0;x<24;x++){
+    for(x=0;x<24;x++){
       cur_stat_item=dev->stat_day+x;
       if (cur_stat_item->min==ERROR_TEMPERATURE || cur_stat_item->max==ERROR_TEMPERATURE)continue;
 
@@ -203,7 +206,7 @@ char *create_json(TEMPERATURE_data* td)
     // статитсика за месяц:
     ADDSTR(buf,&buf_size,"\"last_month_by_days\":{");
     list_empty=true;
-    for(int x=0;x<31;x++){
+    for(x=0;x<31;x++){
       cur_stat_item=dev->stat_month+x;
       if (cur_stat_item->min==ERROR_TEMPERATURE || cur_stat_item->max==ERROR_TEMPERATURE)continue;
 
@@ -228,7 +231,7 @@ char *create_json(TEMPERATURE_data* td)
     // статитсика за год:
     ADDSTR(buf,&buf_size,"\"last_year_by_months\":{");
     list_empty=true;
-    for(int x=0;x<12;x++){
+    for(x=0;x<12;x++){
       cur_stat_item=dev->stat_year+x;
       if (cur_stat_item->min==ERROR_TEMPERATURE || cur_stat_item->max==ERROR_TEMPERATURE)continue;
 
@@ -262,6 +265,14 @@ char *create_json(TEMPERATURE_data* td)
     }
   }
   ESP_LOGD(TAG,"%s(%d): xSemaphoreGive(temperature_data_sem)",__func__,__LINE__);xSemaphoreGive(temperature_data_sem);
+  // закрываем объект данных по температурным датчикам:
+  ADDSTR(buf,&buf_size,"},");
+  ADDSTR(buf,&buf_size,"\"system\":{");
+  // закрываем объект данных по системе
+  sprintf(tmp,"\"uptime_seconds\": %llu",esp_timer_get_time()/1000000);
+  ADDSTR(buf,&buf_size,tmp);
+  ADDSTR(buf,&buf_size,"}");
+  // закрываем json
   ADDSTR(buf,&buf_size,"}");
   return buf;
 }
@@ -274,7 +285,7 @@ char* create_index(TEMPERATURE_data *td)
   char *buf=NULL;
   int buf_size=0;
   char tmp[512];
-  bool list_empty;
+  char *tmp_pointer;
   int x;
   TEMPERATURE_device *dev;
   TEMPERATURE_stat_item *cur_stat_item;
@@ -304,6 +315,20 @@ color: white;\
 </head>\
 <body>");
   ESP_LOGD(TAG,"%s(%d): xSemaphoreTake(temperature_data_sem)",__func__,__LINE__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
+
+  /// uptime выводим на экран:
+  ADDSTR(buf,&buf_size,"Время работы системы с этапа загрузки составляет: ");
+  tmp_pointer=systime_uptime();
+  if(tmp_pointer==NULL){
+    ESP_LOGE(TAG,"systime_uptime()");
+    ADDSTR(buf,&buf_size,"неизвестно");
+  }
+  else{
+    ADDSTR(buf,&buf_size,tmp_pointer);
+    free(tmp_pointer);
+  }
+  ADDSTR(buf,&buf_size,"<br>");
+
   ADDSTR(buf,&buf_size,"<h1 style=\"text-align: center;\">Температуры датчиков:</h1>");
   sprintf(tmp,"<table border=\"1\"><thead><tr><th>Наименование датчика</th>\
   <th>Текущая температура</th>\
