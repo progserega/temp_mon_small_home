@@ -316,6 +316,12 @@ int temperature_deactivate_devices(TEMPERATURE_data *td)
   ESP_LOGD(TAG,"%s(%d): end",__func__,__LINE__);
   return 0;
 }
+bool is_temp_valid(float temp)
+{
+  if(temp>80)return false;
+  if(temp<-80)return false;
+  return true;
+}
 
 int temperature_update_device_data(TEMPERATURE_data *td)
 {
@@ -333,7 +339,12 @@ int temperature_update_device_data(TEMPERATURE_data *td)
       if (ds_error != DS18B20_OK)
         (td->temp_devices+i)->errors++;
       else
-        (td->temp_devices+i)->temp=reading_temp;
+        if(is_temp_valid(reading_temp)==true){
+          (td->temp_devices+i)->temp=reading_temp;
+        }
+        else{
+          ESP_LOGW(TAG,"temp from sensor not validate - skip");
+        }
     }
     vTaskDelayUntil(&last_wake_time, SAMPLE_PERIOD / portTICK_PERIOD_MS);
   }

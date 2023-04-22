@@ -75,6 +75,8 @@ void reset_temperature(TEMPERATURE_data *td);
 int temperature_stat_save_to_flash(TEMPERATURE_data *td);
 // восстановление с внутреннего flash-носителя статистических данных:
 int temperature_stat_load_from_flash(TEMPERATURE_data *td);
+// проверка корректности показаний температуры:
+bool is_temp_valid(float temp);
 //---------------------------------------------------------------------
 
 #endif /* TEMPERATURE_H_ */
