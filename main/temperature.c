@@ -10,6 +10,7 @@ static char *TAG="temperature";
 //==============================================================
 
 int old_hour=-1;
+int old_day=-1;
 
 // обновляем статистику по текущим показаниям датчиков:
 int temperature_update_device_stat(TEMPERATURE_data *td)
@@ -18,6 +19,7 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
   struct tm timeinfo = { 0 };
   TEMPERATURE_stat_item *cur_stat_item;
   TEMPERATURE_device *dev;
+  int x;
 
   ESP_LOGD(TAG,"%s(%d): start",__func__,__LINE__);
 
@@ -57,7 +59,7 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
 
     // пересчитываем текущую позицию за отчётные периоды:
     // за день:
-    for(int x=0;x<24;x++){
+    for(x=0;x<24;x++){
       cur_stat_item=dev->stat_day+x;
       if(cur_stat_item->max != ERROR_TEMPERATURE){
         if(dev->stat_day_max_temp==ERROR_TEMPERATURE)dev->stat_day_max_temp=cur_stat_item->max;
@@ -69,7 +71,7 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
       }
     }
     // за месяц:
-    for(int x=0;x<31;x++){
+    for(x=0;x<31;x++){
       cur_stat_item=dev->stat_month+x;
       if(cur_stat_item->max != ERROR_TEMPERATURE){
         if(dev->stat_month_max_temp==ERROR_TEMPERATURE)dev->stat_month_max_temp=cur_stat_item->max;
@@ -81,7 +83,7 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
       }
     }
     // за год:
-    for(int x=0;x<12;x++){
+    for(x=0;x<12;x++){
       cur_stat_item=dev->stat_year+x;
       if(cur_stat_item->max != ERROR_TEMPERATURE){
         if(dev->stat_year_max_temp==ERROR_TEMPERATURE)dev->stat_year_max_temp=cur_stat_item->max;
@@ -103,7 +105,21 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
       }
     }
   }
+  // проверяем, был ли переход на новый месяц. Если да - надо подчистить оставшиеся дни, если есть
+  // т.е. если в прошедшем месяце, например, было 29 дней, а позапрошлом - 31, то показания 30 и 31 не
+  // перезатёрлись в прошлом месяце и позапрошломесячные показания двух дней будут влиять на статистику
+  if(old_day!=timeinfo.tm_mday && timeinfo.tm_mday == 1){
+    // с прошлого запуска изменился месяц, проверяем - нужно ли перетерать последние дни:
+    ESP_LOGI(TAG,"start new month - try clear end days stat");
+    for(x=old_day;x<31;x++){
+      cur_stat_item=dev->stat_month+x-1; // -1 т.к. дни начинаются не с 0, а с 1 (в отличч от часов и месяцев - см. структуру tm в /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h)
+      ESP_LOGD(TAG,"clear data at %d day (index=%d)",x,x-1);
+      cur_stat_item->max = ERROR_TEMPERATURE;
+      cur_stat_item->min = ERROR_TEMPERATURE;
+    }
+  }
   old_hour=timeinfo.tm_hour;
+  old_day=timeinfo.tm_mday;
   return 0;
 }
 
@@ -152,6 +168,7 @@ int temperature_stat_save_to_flash(TEMPERATURE_data *td)
     for(x=0;x<31;x++){
       stat[x*2]=(dev->stat_month+x)->min;
       stat[x*2+1]=(dev->stat_month+x)->max;
+      ESP_LOGD(TAG,"day=%d, min=%d, max=%d",x,stat[x*2],stat[x*2+1]);
     }
     ESP_LOGI(TAG,"write %d bytes to file: %s",buf_size,file_name);
     if(spiffs_save_buf_to_file(file_name,stat,buf_size)){
@@ -166,6 +183,7 @@ int temperature_stat_save_to_flash(TEMPERATURE_data *td)
     for(x=0;x<12;x++){
       stat[x*2]=(dev->stat_year+x)->min;
       stat[x*2+1]=(dev->stat_year+x)->max;
+      ESP_LOGD(TAG,"month=%d, min=%d, max=%d",x,stat[x*2],stat[x*2+1]);
     }
     ESP_LOGI(TAG,"write %d bytes to file: %s",buf_size,file_name);
     if(spiffs_save_buf_to_file(file_name,stat,buf_size)){
