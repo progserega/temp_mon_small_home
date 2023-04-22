@@ -4,7 +4,6 @@ static const char *TAG = "http";
 //-------------------------------------------------------------
 // index.html
 const char http_header[] = {"HTTP/1.1 200 OK\r\nServer: nginx\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"};
-const char index_htm[] = "<!DOCTYPE html><html lang=\"ru\"><head>	<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /><title>ESP32</title></head><body><h1 style=\"text-align: center;\">Esp 32<br><br>HTTP Server</h1><p><span style=\"font-family: Times New Roman,Times,serif;\">ESP32 is a single 2.4 GHz Wi-Fi-and-Bluetooth combo chip designed with the TSMC ultra-low-power 40 nm technology.</span> </p></body></html>";
 // index.json
 const char json_header[] = {"HTTP/1.1 200 OK\r\nServer: nginx\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n"};
 //-------------------------------------------------------------
@@ -64,7 +63,7 @@ void http_task(void *pvParameters)
   int sockfd, accept_sock, ret;
   socklen_t sockaddrsize;
   uint8_t *buf;
-  char *json_data;
+  char *data;
   int buflen = 1024;
   struct sockaddr_in servaddr, cliaddr;
   ESP_LOGI(TAG,"%s(%d): Create socket...",__func__,__LINE__);
@@ -101,20 +100,26 @@ void http_task(void *pvParameters)
         {
           if ((strncmp((char const *)buf,"GET / ",6)==0)||(strncmp((char const *)buf,"GET /index.html",15)==0))
           {
-            strcpy((char*)buf,http_header);
-            memcpy((void*)(buf + strlen(http_header)),(void*)index_htm,sizeof(index_htm));
-            write(accept_sock, (const unsigned char*)buf, strlen(http_header) + sizeof(index_htm));
+            ESP_LOGI(TAG,"%s(%d): create html_data",__func__,__LINE__);
+            write(accept_sock, (const unsigned char*)http_header, strlen(http_header));
+            data=create_index((TEMPERATURE_data*)pvParameters);
+            ESP_LOGD(TAG,"%s(%d): index_data=%s",__func__,__LINE__,data);
+            if(!data){ESP_LOGE(TAG,"%s(%d): create_index(TEMPERATURE_data*td)",__func__,__LINE__);}
+            else{
+              write(accept_sock, (const unsigned char*)data,strlen(data));
+              free(data);
+            }
           }
           else if (strncmp((char const *)buf,"GET /index.json",15)==0)
           {
             ESP_LOGI(TAG,"%s(%d): create json_data",__func__,__LINE__);
             write(accept_sock, (const unsigned char*)json_header, strlen(json_header));
-            json_data=create_json((TEMPERATURE_data*)pvParameters);
-            ESP_LOGD(TAG,"%s(%d): json_data=%s",__func__,__LINE__,json_data);
-            if(!json_data){ESP_LOGE(TAG,"%s(%d): create_json(TEMPERATURE_data*td)",__func__,__LINE__);}
+            data=create_json((TEMPERATURE_data*)pvParameters);
+            ESP_LOGD(TAG,"%s(%d): json_data=%s",__func__,__LINE__,data);
+            if(!data){ESP_LOGE(TAG,"%s(%d): create_json(TEMPERATURE_data*td)",__func__,__LINE__);}
             else{
-              write(accept_sock, (const unsigned char*)json_data,strlen(json_data));
-              free(json_data);
+              write(accept_sock, (const unsigned char*)data,strlen(data));
+              free(data);
             }
           }
         }
@@ -151,19 +156,19 @@ char *create_json(TEMPERATURE_data* td)
     ADDSTR(buf,&buf_size,tmp);
     sprintf(tmp,"\"addr\":\"%s\",",dev->device_addr);
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"current_temperature\":%3.3f,",dev->temp);
+    sprintf(tmp,"\"current_temperature\":%3.2f,",dev->temp);
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_day_max_temp\":%3.3f,",(float)dev->stat_day_max_temp/1000);
+    sprintf(tmp,"\"stat_day_max_temp\":%3.2f,",(float)dev->stat_day_max_temp/1000);
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_day_min_temp\":%3.3f,",(float)dev->stat_day_min_temp/1000);
+    sprintf(tmp,"\"stat_day_min_temp\":%3.2f,",(float)dev->stat_day_min_temp/1000);
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_month_max_temp\":%3.3f,",(float)dev->stat_month_max_temp/1000);
+    sprintf(tmp,"\"stat_month_max_temp\":%3.2f,",(float)dev->stat_month_max_temp/1000);
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_month_min_temp\":%3.3f,",(float)dev->stat_month_min_temp/1000);
+    sprintf(tmp,"\"stat_month_min_temp\":%3.2f,",(float)dev->stat_month_min_temp/1000);
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_year_max_temp\":%3.3f,",(float)dev->stat_year_max_temp/1000);
+    sprintf(tmp,"\"stat_year_max_temp\":%3.2f,",(float)dev->stat_year_max_temp/1000);
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_year_min_temp\":%3.3f,",(float)dev->stat_year_min_temp/1000);
+    sprintf(tmp,"\"stat_year_min_temp\":%3.2f,",(float)dev->stat_year_min_temp/1000);
     ADDSTR(buf,&buf_size,tmp);
     sprintf(tmp,"\"errors\":%d,",dev->errors);
     ADDSTR(buf,&buf_size,tmp);
@@ -268,123 +273,279 @@ char* create_index(TEMPERATURE_data *td)
 #define ADDSTR(buf, size, str) buf=append_string(buf,size,str);if(!buf){ESP_LOGE(TAG,"%s(%d): append_string()",__func__,__LINE__);return NULL;}
   char *buf=NULL;
   int buf_size=0;
-  char tmp[256];
+  char tmp[512];
   bool list_empty;
+  int x;
   TEMPERATURE_device *dev;
   TEMPERATURE_stat_item *cur_stat_item;
-  ADDSTR(buf,&buf_size,"<!DOCTYPE html><html lang=\"ru\"><head>	<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /><title>ESP32</title></head><body><h3 style=\"text-align: center;\">Статистика температурных датчиков<br><br>");
-
-
+  ADDSTR(buf,&buf_size,"<!DOCTYPE html> <html lang=\"ru\">\
+  <head>\
+  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />\
+  <title>Датчики в домике</title>  \
+  \
+<style> \
+td { \
+background-color: lightblue; \
+}\
+th { \
+background-color: lightgreen; \
+}\
+.red {\
+background-color: #ff8080;\
+}\
+.orange {\
+background-color: #f4d058;\
+}\
+.current {\
+background-color: green;\
+color: white;\
+}\
+</style>\
+</head>\
+<body>");
   ESP_LOGD(TAG,"%s(%d): xSemaphoreTake(temperature_data_sem)",__func__,__LINE__);xSemaphoreTake(temperature_data_sem,portMAX_DELAY);
-  for(int i=0;i<td->num_devices;i++)
+  ADDSTR(buf,&buf_size,"<h1 style=\"text-align: center;\">Температуры датчиков:</h1>");
+  sprintf(tmp,"<table border=\"1\"><thead><tr><th>Наименование датчика</th>\
+  <th>Текущая температура</th>\
+  <th>Максимальная за день</th>\
+  <th>Минимальная за день</th>\
+  <th>Максимальная за месяц</th>\
+  <th>Минимальная за месяц</th>\
+  <th>Максимальная за год</th>\
+  <th>Минимальная за год</th>\
+  </tr></thead><tbody>");
+  ADDSTR(buf,&buf_size,tmp);
+  for(int i=0;i<td->num_devices;i++) 
   {
     dev = td->temp_devices+i;
-    sprintf(tmp,"<h4 >%s",dev->device_name);
+    sprintf(tmp,"<tr>");
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"current_temperature\":%3.3f,",dev->temp);
+
+    // имя
+    if (strlen(dev->device_name)==0){
+      sprintf(tmp,"<td>%s</td>",dev->device_addr);
+    }
+    else{
+      sprintf(tmp,"<td>%s</td>",dev->device_name);
+    }
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_day_max_temp\":%3.3f,",(float)dev->stat_day_max_temp/1000);
+
+    // текущая температура:
+    if(dev->temp==ERROR_TEMPERATURE){
+      sprintf(tmp,"<td class=\"red\">-</td>");
+    }else{
+      sprintf(tmp,"<td class=\"current\">%3.2f</td>",dev->temp);
+    }
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_day_min_temp\":%3.3f,",(float)dev->stat_day_min_temp/1000);
+
+    // максимальная за сутки:
+    if(dev->stat_day_max_temp==ERROR_TEMPERATURE){
+      sprintf(tmp,"<td class=\"red\">-</td>");
+    }else{
+      sprintf(tmp,"<td class=\"orange\">%3.2f</td>",(float)dev->stat_day_max_temp/1000);
+    }
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_month_max_temp\":%3.3f,",(float)dev->stat_month_max_temp/1000);
+    // минимальная за сутки:
+    if(dev->stat_day_min_temp==ERROR_TEMPERATURE){
+      sprintf(tmp,"<td class=\"red\">-</td>");
+    }else{
+      sprintf(tmp,"<td>%3.2f</td>",(float)dev->stat_day_min_temp/1000);
+    }
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_month_min_temp\":%3.3f,",(float)dev->stat_month_min_temp/1000);
+
+    // максимальная за месяц:
+    if(dev->stat_month_max_temp==ERROR_TEMPERATURE){
+      sprintf(tmp,"<td class=\"red\">-</td>");
+    }else{
+      sprintf(tmp,"<td class=\"orange\">%3.2f</td>",(float)dev->stat_month_max_temp/1000);
+    }
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_year_max_temp\":%3.3f,",(float)dev->stat_year_max_temp/1000);
+    // минимальная за месяц:
+    if(dev->stat_month_min_temp==ERROR_TEMPERATURE){
+      sprintf(tmp,"<td class=\"red\">-</td>");
+    }else{
+      sprintf(tmp,"<td>%3.2f</td>",(float)dev->stat_month_min_temp/1000);
+    }
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"stat_year_min_temp\":%3.3f,",(float)dev->stat_year_min_temp/1000);
+
+    // максимальная за год:
+    if(dev->stat_year_max_temp==ERROR_TEMPERATURE){
+      sprintf(tmp,"<td class=\"red\">-</td>");
+    }else{
+      sprintf(tmp,"<td class=\"orange\">%3.2f</td>",(float)dev->stat_year_max_temp/1000);
+    }
     ADDSTR(buf,&buf_size,tmp);
-    sprintf(tmp,"\"errors\":%d,",dev->errors);
+    // минимальная за год:
+    if(dev->stat_year_min_temp==ERROR_TEMPERATURE){
+      sprintf(tmp,"<td class=\"red\">-</td>");
+    }else{
+      sprintf(tmp,"<td>%3.2f</td>",(float)dev->stat_year_min_temp/1000);
+    }
     ADDSTR(buf,&buf_size,tmp);
-    // статистика:
-    ADDSTR(buf,&buf_size,"\"statistics\":{");
+    sprintf(tmp,"</tr>");
+    ADDSTR(buf,&buf_size,tmp);
+  }
+  sprintf(tmp,"</tbody></table>");
+  ADDSTR(buf,&buf_size,tmp);
+
+  ADDSTR(buf,&buf_size,"<h1 style=\"text-align: center;\">Статистика температурных датчиков</h1>");
+  for(int i=0;i<td->num_devices;i++) 
+  {
+    dev = td->temp_devices+i;
+    if (strlen(dev->device_name)==0){
+      sprintf(tmp,"<h3 style=\"text-align: center;\"> Имя датчика: %s</h3>",dev->device_addr);
+    }
+    else{
+      sprintf(tmp,"<h3 style=\"text-align: center;\"> Имя датчика: %s</h3>",dev->device_name);
+    }
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<table border=\"1\"><thead><tr><th>Наименование показания</th><th>Показания в градусах</th></tr></thead><tbody>");
+    ADDSTR(buf,&buf_size,tmp);
+
+    sprintf(tmp,"<tr><td>Текущая температура</td><td class=\"current\">%3.2f C</td></tr>,",dev->temp);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<tr><td class=\"orange\">Максимальная температура за последние сутки</td><td class=\"orange\">%3.2f C</td></tr>,",(float)dev->stat_day_max_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<tr><td>Минимальная температура за последние сутки</td><td>%3.2f C</td></tr>,",(float)dev->stat_day_min_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<tr><td class=\"orange\">Максимальная температура за последний месяц</td><td class=\"orange\">%3.2f C</td></tr>,",(float)dev->stat_month_max_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<tr><td>Минимальная температура за последний месяц</td><td>%3.2f C</td></tr>,",(float)dev->stat_month_min_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<tr><td class=\"orange\">Максимальная температура за последний год</td><td class=\"orange\">%3.2f C</td></tr>,",(float)dev->stat_year_max_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<tr><td>Минимальная температура за последний год</td><td>%3.2f C</td></tr>,",(float)dev->stat_year_min_temp/1000);
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"</tbody></table>");
+    ADDSTR(buf,&buf_size,tmp);
 
     // статитсика за сутки:
-    ADDSTR(buf,&buf_size,"\"last_day_by_hours\":{");
-    list_empty=true;
+    sprintf(tmp,"<h4>Статистика за сутки:</h4>");
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<table border=\"1\"><thead><tr><th></th><th colspan=\"24\">Часы суток</th></tr>");
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<tr><th>Тип значения</th>");
+    ADDSTR(buf,&buf_size,tmp);
+    for(x=0;x<24;x++){
+      sprintf(tmp,"<th>%d</th>",x);
+      ADDSTR(buf,&buf_size,tmp);
+    }
+    sprintf(tmp,"</tr></thead><tbody>");
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<td class=\"orange\">Максимальные зафиксированные значения (C)</td>");
+    ADDSTR(buf,&buf_size,tmp);
     for(int x=0;x<24;x++){
       cur_stat_item=dev->stat_day+x;
-      if (cur_stat_item->min==ERROR_TEMPERATURE || cur_stat_item->max==ERROR_TEMPERATURE)continue;
-
-      if(!list_empty){
-        ADDSTR(buf,&buf_size,",");
+      if (cur_stat_item->max==ERROR_TEMPERATURE){
+        sprintf(tmp,"<td class=\"red\">-</td>");
+        ADDSTR(buf,&buf_size,tmp);
       }
-
-      sprintf(tmp,"\"%d\": {",x);
-      ADDSTR(buf,&buf_size,tmp);
-
-      sprintf(tmp,"\"min\": %f,",(float)cur_stat_item->min / 1000);
-      ADDSTR(buf,&buf_size,tmp);
-      sprintf(tmp,"\"max\": %f",(float)cur_stat_item->max / 1000);
-      ADDSTR(buf,&buf_size,tmp);
-
-      ADDSTR(buf,&buf_size,"}");
-      list_empty=false;
+      else{
+        sprintf(tmp,"<td class=\"orange\">%3.2f</td>",(float)cur_stat_item->max/1000);
+        ADDSTR(buf,&buf_size,tmp);
+      }
     }
-    // закрываем объект статистики "день":
-    ADDSTR(buf,&buf_size,"},");
+    sprintf(tmp,"</tr><td>Минимальные зафиксированные значения (C)</td>");
+    ADDSTR(buf,&buf_size,tmp);
+    for(int x=0;x<24;x++){
+      cur_stat_item=dev->stat_day+x;
+      if (cur_stat_item->min==ERROR_TEMPERATURE){
+        sprintf(tmp,"<td class=\"red\">-</td>");
+        ADDSTR(buf,&buf_size,tmp);
+      }
+      else{
+        sprintf(tmp,"<td>%3.2f</td>",(float)cur_stat_item->min/1000);
+        ADDSTR(buf,&buf_size,tmp);
+      }
+    }
+    sprintf(tmp,"</tr></tbody></table>");
+    ADDSTR(buf,&buf_size,tmp);
+
 
     // статитсика за месяц:
-    ADDSTR(buf,&buf_size,"\"last_month_by_days\":{");
-    list_empty=true;
+    sprintf(tmp,"<h4>Статистика за последний месяц:</h4>");
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<table border=\"1\"><thead><tr><th></th><th colspan=\"31\">Дни месяца</th></tr>");
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<tr><th>Тип значения</th>");
+    ADDSTR(buf,&buf_size,tmp);
+    for(x=1;x<=31;x++){
+      sprintf(tmp,"<th>%d</th>",x);
+      ADDSTR(buf,&buf_size,tmp);
+    }
+    sprintf(tmp,"</tr></thead><tbody>");
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<td class=\"orange\">Максимальные зафиксированные значения (C)</td>");
+    ADDSTR(buf,&buf_size,tmp);
     for(int x=0;x<31;x++){
       cur_stat_item=dev->stat_month+x;
-      if (cur_stat_item->min==ERROR_TEMPERATURE || cur_stat_item->max==ERROR_TEMPERATURE)continue;
-
-      if(!list_empty){
-        ADDSTR(buf,&buf_size,",");
+      if (cur_stat_item->max==ERROR_TEMPERATURE){
+        sprintf(tmp,"<td class=\"red\">-</td>");
+        ADDSTR(buf,&buf_size,tmp);
       }
-
-      sprintf(tmp,"\"%d\": {",x+1);
-      ADDSTR(buf,&buf_size,tmp);
-
-      sprintf(tmp,"\"min\": %f,",(float)cur_stat_item->min / 1000);
-      ADDSTR(buf,&buf_size,tmp);
-      sprintf(tmp,"\"max\": %f",(float)cur_stat_item->max / 1000);
-      ADDSTR(buf,&buf_size,tmp);
-
-      ADDSTR(buf,&buf_size,"}");
-      list_empty=false;
+      else{
+        sprintf(tmp,"<td class=\"orange\">%3.2f</td>",(float)cur_stat_item->max/1000);
+        ADDSTR(buf,&buf_size,tmp);
+      }
     }
-    // закрываем объект статистики "месяц":
-    ADDSTR(buf,&buf_size,"},");
+    sprintf(tmp,"</tr><td>Минимальные зафиксированные значения (C)</td>");
+    ADDSTR(buf,&buf_size,tmp);
+    for(int x=0;x<31;x++){
+      cur_stat_item=dev->stat_month+x;
+      if (cur_stat_item->min==ERROR_TEMPERATURE){
+        sprintf(tmp,"<td class=\"red\">-</td>");
+        ADDSTR(buf,&buf_size,tmp);
+      }
+      else{
+        sprintf(tmp,"<td>%3.2f</td>",(float)cur_stat_item->min/1000);
+        ADDSTR(buf,&buf_size,tmp);
+      }
+    }
+    sprintf(tmp,"</tr></tbody></table>");
+    ADDSTR(buf,&buf_size,tmp);
 
     // статитсика за год:
-    ADDSTR(buf,&buf_size,"\"last_year_by_months\":{");
-    list_empty=true;
+    sprintf(tmp,"<h4>Статистика за последний год:</h4>");
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<table border=\"1\"><thead><tr><th></th><th colspan=\"31\">Месяцы года</th></tr>");
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<tr><th>Тип значения</th>");
+    ADDSTR(buf,&buf_size,tmp);
+    for(x=1;x<=12;x++){
+      sprintf(tmp,"<th>%d</th>",x);
+      ADDSTR(buf,&buf_size,tmp);
+    }
+    sprintf(tmp,"</tr></thead><tbody>");
+    ADDSTR(buf,&buf_size,tmp);
+    sprintf(tmp,"<td class=\"orange\">Максимальные зафиксированные значения (C)</td>");
+    ADDSTR(buf,&buf_size,tmp);
     for(int x=0;x<12;x++){
       cur_stat_item=dev->stat_year+x;
-      if (cur_stat_item->min==ERROR_TEMPERATURE || cur_stat_item->max==ERROR_TEMPERATURE)continue;
-
-      if(!list_empty){
-        ADDSTR(buf,&buf_size,",");
+      if (cur_stat_item->max==ERROR_TEMPERATURE){
+        sprintf(tmp,"<td class=\"red\">-</td>");
+        ADDSTR(buf,&buf_size,tmp);
       }
-
-      sprintf(tmp,"\"%d\": {",x+1);
-      ADDSTR(buf,&buf_size,tmp);
-
-      sprintf(tmp,"\"min\": %f,",(float)cur_stat_item->min / 1000);
-      ADDSTR(buf,&buf_size,tmp);
-      sprintf(tmp,"\"max\": %f",(float)cur_stat_item->max / 1000);
-      ADDSTR(buf,&buf_size,tmp);
-
-      ADDSTR(buf,&buf_size,"}");
-      list_empty=false;
+      else{
+        sprintf(tmp,"<td class=\"orange\">%3.2f</td>",(float)cur_stat_item->max/1000);
+        ADDSTR(buf,&buf_size,tmp);
+      }
     }
-    // закрываем объект статистики "год":
-    ADDSTR(buf,&buf_size,"}");
-
-    // закрываем объект статистики:
-    // последний объект без запятой после себя:
-    ADDSTR(buf,&buf_size,"}");
-
-    // закрываем объект датчика:
-    ADDSTR(buf,&buf_size,"}");
-    // последний объект без запятой после себя:
-    if(i<td->num_devices-1){
-      ADDSTR(buf,&buf_size,",");
+    sprintf(tmp,"</tr><td>Минимальные зафиксированные значения (C)</td>");
+    ADDSTR(buf,&buf_size,tmp);
+    for(int x=0;x<12;x++){
+      cur_stat_item=dev->stat_year+x;
+      if (cur_stat_item->min==ERROR_TEMPERATURE){
+        sprintf(tmp,"<td class=\"red\">-</td>");
+        ADDSTR(buf,&buf_size,tmp);
+      }
+      else{
+        sprintf(tmp,"<td>%3.2f</td>",(float)cur_stat_item->min/1000);
+        ADDSTR(buf,&buf_size,tmp);
+      }
     }
+    sprintf(tmp,"</tr></tbody></table>");
+    ADDSTR(buf,&buf_size,tmp);
+
   }
   ESP_LOGD(TAG,"%s(%d): xSemaphoreGive(temperature_data_sem)",__func__,__LINE__);xSemaphoreGive(temperature_data_sem);
   ADDSTR(buf,&buf_size,"</body></html>");
