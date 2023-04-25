@@ -11,6 +11,7 @@ static char *TAG="temperature";
 
 int old_hour=-1;
 int old_day=-1;
+int old_month=-1;
 
 // обновляем статистику по текущим показаниям датчиков:
 int temperature_update_device_stat(TEMPERATURE_data *td)
@@ -40,24 +41,49 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
 
     // обновляем статистику за час:
     cur_stat_item=dev->stat_day+timeinfo.tm_hour;
-    if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
-    if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
-    if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
-    if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
-    // обновляем статистику за день:
-    cur_stat_item=dev->stat_month+timeinfo.tm_mday-1; // -1 т.к. дни начинаются не с 0, а с 1 (в отличч от часов и месяцев - см. структуру tm в /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h)
-    if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
-    if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
-    if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
-    if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
-    // обновляем статистику за месяц:
-    cur_stat_item=dev->stat_year+timeinfo.tm_mon;
+    // проверяем, перевёлся ли час, если - да - очищаем статистику за этот новый час от прошлых записей:
+    if(old_hour!=timeinfo.tm_hour){
+      cur_stat_item->min=cur_temp;
+      cur_stat_item->max=cur_temp;
+    }
     if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
     if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
     if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
     if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
 
-    // пересчитываем текущую позицию за отчётные периоды:
+    // обновляем статистику за день:
+    cur_stat_item=dev->stat_month+timeinfo.tm_mday-1; // -1 т.к. дни начинаются не с 0, а с 1 (в отличч от часов и месяцев - см. структуру tm в /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h)
+    // проверяем, перевёлся ли день, если - да - очищаем статистику за этот новый день от прошлых записей:
+    if(old_day!=timeinfo.tm_mday){
+      cur_stat_item->min=cur_temp;
+      cur_stat_item->max=cur_temp;
+    }
+    if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
+    if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
+    if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
+    if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
+
+    // обновляем статистику за месяц:
+    cur_stat_item=dev->stat_year+timeinfo.tm_mon;
+    // проверяем, перевёлся ли месяц, если - да - очищаем статистику за этот новый месяц от прошлых записей:
+    if(old_month!=timeinfo.tm_mon){
+      cur_stat_item->min=cur_temp;
+      cur_stat_item->max=cur_temp;
+    }
+    if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
+    if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
+    if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
+    if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
+
+    // пересчитываем пограничные значения для суток, месяца, года.
+    // перед этим нужно очистить предыдущие пограничные значения:
+    dev->stat_day_min_temp=ERROR_TEMPERATURE;
+    dev->stat_day_max_temp=ERROR_TEMPERATURE;
+    dev->stat_month_min_temp=ERROR_TEMPERATURE;
+    dev->stat_month_max_temp=ERROR_TEMPERATURE;
+    dev->stat_year_min_temp=ERROR_TEMPERATURE;
+    dev->stat_year_max_temp=ERROR_TEMPERATURE;
+
     // за день:
     for(x=0;x<24;x++){
       cur_stat_item=dev->stat_day+x;
@@ -123,6 +149,7 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
 
   old_hour=timeinfo.tm_hour;
   old_day=timeinfo.tm_mday;
+  old_month=timeinfo.tm_mon;
   return 0;
 }
 
