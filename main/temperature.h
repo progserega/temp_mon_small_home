@@ -77,6 +77,24 @@ int temperature_stat_save_to_flash(TEMPERATURE_data *td);
 int temperature_stat_load_from_flash(TEMPERATURE_data *td);
 // проверка корректности показаний температуры:
 bool is_temp_valid(float temp);
+// анализируем собранные данные за последние 24 часа по заданному
+// устройству и выбираем минимальную температуру:
+int get_min_temp_last_24hour(TEMPERATURE_device *dev);
+// анализируем собранные данные за последние 24 часа по заданному
+// устройству и выбираем максимальную температуру:
+int get_max_temp_last_24hour(TEMPERATURE_device *dev);
+// анализируем собранные данные за последний 31 день по заданному
+// устройству и выбираем минимальную температуру:
+int get_min_temp_last_31day(TEMPERATURE_device *dev);
+// анализируем собранные данные за последний 31 день по заданному
+// устройству и выбираем максимальную температуру:
+int get_max_temp_last_31day(TEMPERATURE_device *dev);
+// анализируем собранные данные за последние 12 месяцев по заданному
+// устройству и выбираем минимальную температуру:
+int get_min_temp_last_12month(TEMPERATURE_device *dev);
+// анализируем собранные данные за последние 12 месяцев по заданному
+// устройству и выбираем максимальную температуру:
+int get_max_temp_last_12month(TEMPERATURE_device *dev);
 //---------------------------------------------------------------------
 
 #endif /* TEMPERATURE_H_ */

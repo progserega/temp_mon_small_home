@@ -11,7 +11,6 @@ static char *TAG="temperature";
 
 int old_hour=-1;
 int old_day=-1;
-int old_month=-1;
 
 // обновляем статистику по текущим показаниям датчиков:
 int temperature_update_device_stat(TEMPERATURE_data *td)
@@ -21,6 +20,8 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
   TEMPERATURE_stat_item *cur_stat_item;
   TEMPERATURE_device *dev;
   int x;
+  int calc_min;
+  int calc_max;
 
   ESP_LOGD(TAG,"%s(%d): start",__func__,__LINE__);
 
@@ -53,73 +54,30 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
 
     // обновляем статистику за день:
     cur_stat_item=dev->stat_month+timeinfo.tm_mday-1; // -1 т.к. дни начинаются не с 0, а с 1 (в отличч от часов и месяцев - см. структуру tm в /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h)
-    // проверяем, перевёлся ли день, если - да - очищаем статистику за этот новый день от прошлых записей:
-    if(old_day!=timeinfo.tm_mday){
-      cur_stat_item->min=cur_temp;
-      cur_stat_item->max=cur_temp;
-    }
-    if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
-    if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
-    if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
-    if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
+    /// собираем статистику по часам и формируем пограничные значения за текущие сутки:
+    calc_min=get_min_temp_last_24hour(dev);
+    calc_max=get_max_temp_last_24hour(dev);
+    cur_stat_item->min=calc_min;
+    cur_stat_item->max=calc_max;
+    dev->stat_day_min_temp=calc_min;
+    dev->stat_day_max_temp=calc_max;
 
     // обновляем статистику за месяц:
     cur_stat_item=dev->stat_year+timeinfo.tm_mon;
-    // проверяем, перевёлся ли месяц, если - да - очищаем статистику за этот новый месяц от прошлых записей:
-    if(old_month!=timeinfo.tm_mon){
-      cur_stat_item->min=cur_temp;
-      cur_stat_item->max=cur_temp;
-    }
-    if(cur_stat_item->min==ERROR_TEMPERATURE)cur_stat_item->min=cur_temp;
-    if(cur_stat_item->max==ERROR_TEMPERATURE)cur_stat_item->max=cur_temp;
-    if(cur_temp<cur_stat_item->min)cur_stat_item->min=cur_temp;
-    if(cur_temp>cur_stat_item->max)cur_stat_item->max=cur_temp;
+    /// собираем статистику по дням и формируем пограничные значения за текущий месяц:
+    calc_min=get_min_temp_last_31day(dev);
+    calc_max=get_max_temp_last_31day(dev);
+    cur_stat_item->min=calc_min;
+    cur_stat_item->max=calc_max;
+    dev->stat_month_min_temp=calc_min;
+    dev->stat_month_max_temp=calc_max;
 
-    // пересчитываем пограничные значения для суток, месяца, года.
-    // перед этим нужно очистить предыдущие пограничные значения:
-    dev->stat_day_min_temp=ERROR_TEMPERATURE;
-    dev->stat_day_max_temp=ERROR_TEMPERATURE;
-    dev->stat_month_min_temp=ERROR_TEMPERATURE;
-    dev->stat_month_max_temp=ERROR_TEMPERATURE;
-    dev->stat_year_min_temp=ERROR_TEMPERATURE;
-    dev->stat_year_max_temp=ERROR_TEMPERATURE;
-
-    // за день:
-    for(x=0;x<24;x++){
-      cur_stat_item=dev->stat_day+x;
-      if(cur_stat_item->max != ERROR_TEMPERATURE){
-        if(dev->stat_day_max_temp==ERROR_TEMPERATURE)dev->stat_day_max_temp=cur_stat_item->max;
-        if(cur_stat_item->max > dev->stat_day_max_temp)dev->stat_day_max_temp=cur_stat_item->max;
-      }
-      if(cur_stat_item->min != ERROR_TEMPERATURE){
-        if(dev->stat_day_min_temp==ERROR_TEMPERATURE)dev->stat_day_min_temp=cur_stat_item->min;
-        if(cur_stat_item->min < dev->stat_day_min_temp)dev->stat_day_min_temp=cur_stat_item->min;
-      }
-    }
-    // за месяц:
-    for(x=0;x<31;x++){
-      cur_stat_item=dev->stat_month+x;
-      if(cur_stat_item->max != ERROR_TEMPERATURE){
-        if(dev->stat_month_max_temp==ERROR_TEMPERATURE)dev->stat_month_max_temp=cur_stat_item->max;
-        if(cur_stat_item->max > dev->stat_month_max_temp)dev->stat_month_max_temp=cur_stat_item->max;
-      }
-      if(cur_stat_item->min != ERROR_TEMPERATURE){
-        if(dev->stat_month_min_temp==ERROR_TEMPERATURE)dev->stat_month_min_temp=cur_stat_item->min;
-        if(cur_stat_item->min < dev->stat_month_min_temp)dev->stat_month_min_temp=cur_stat_item->min;
-      }
-    }
-    // за год:
-    for(x=0;x<12;x++){
-      cur_stat_item=dev->stat_year+x;
-      if(cur_stat_item->max != ERROR_TEMPERATURE){
-        if(dev->stat_year_max_temp==ERROR_TEMPERATURE)dev->stat_year_max_temp=cur_stat_item->max;
-        if(cur_stat_item->max > dev->stat_year_max_temp)dev->stat_year_max_temp=cur_stat_item->max;
-      }
-      if(cur_stat_item->min != ERROR_TEMPERATURE){
-        if(dev->stat_year_min_temp==ERROR_TEMPERATURE)dev->stat_year_min_temp=cur_stat_item->min;
-        if(cur_stat_item->min < dev->stat_year_min_temp)dev->stat_year_min_temp=cur_stat_item->min;
-      }
-    }
+    // обновляем статистику за год:
+    /// собираем статистику по месяцам и формируем пограничные значения за текущий год:
+    calc_min=get_min_temp_last_12month(dev);
+    calc_max=get_max_temp_last_12month(dev);
+    dev->stat_year_min_temp=calc_min;
+    dev->stat_year_max_temp=calc_max;
 
     // проверяем, был ли переход на новый месяц. Если да - надо подчистить оставшиеся дни у статистики
     // текущего датчика, если есть
@@ -149,10 +107,113 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
 
   old_hour=timeinfo.tm_hour;
   old_day=timeinfo.tm_mday;
-  old_month=timeinfo.tm_mon;
   return 0;
 }
 
+// анализируем собранные данные за последние 24 часа по заданному
+// устройству и выбираем минимальную температуру:
+int get_min_temp_last_24hour(TEMPERATURE_device *dev)
+{
+  TEMPERATURE_stat_item *cur_stat_item;
+  int x;
+  int temp=ERROR_TEMPERATURE;
+  // за день:
+  for(x=0;x<24;x++){
+    cur_stat_item=dev->stat_day+x;
+    if(cur_stat_item->min != ERROR_TEMPERATURE){
+      if(temp==ERROR_TEMPERATURE)temp=cur_stat_item->min;
+      if(cur_stat_item->min < temp)temp=cur_stat_item->min;
+    }
+  }
+  return temp;
+}
+// анализируем собранные данные за последние 24 часа по заданному
+// устройству и выбираем максимальную температуру:
+int get_max_temp_last_24hour(TEMPERATURE_device *dev)
+{
+  TEMPERATURE_stat_item *cur_stat_item;
+  int x;
+  int temp=ERROR_TEMPERATURE;
+  // за день:
+  for(x=0;x<24;x++){
+    cur_stat_item=dev->stat_day+x;
+    if(cur_stat_item->max != ERROR_TEMPERATURE){
+      if(temp==ERROR_TEMPERATURE)temp=cur_stat_item->max;
+      if(cur_stat_item->max > temp)temp=cur_stat_item->max;
+    }
+  }
+  return temp;
+}
+// анализируем собранные данные за последний 31 день по заданному
+// устройству и выбираем минимальную температуру:
+int get_min_temp_last_31day(TEMPERATURE_device *dev)
+{
+  TEMPERATURE_stat_item *cur_stat_item;
+  int x;
+  int temp=ERROR_TEMPERATURE;
+  // за месяц:
+  for(x=0;x<31;x++){
+    cur_stat_item=dev->stat_month+x;
+    if(cur_stat_item->min != ERROR_TEMPERATURE){
+      if(temp==ERROR_TEMPERATURE)temp=cur_stat_item->min;
+      if(cur_stat_item->min < temp)temp=cur_stat_item->min;
+    }
+  }
+  return temp;
+}
+// анализируем собранные данные за последний 31 день по заданному
+// устройству и выбираем максимальную температуру:
+int get_max_temp_last_31day(TEMPERATURE_device *dev)
+{
+  TEMPERATURE_stat_item *cur_stat_item;
+  int x;
+  int temp=ERROR_TEMPERATURE;
+  // за месяц:
+  for(x=0;x<31;x++){
+    cur_stat_item=dev->stat_month+x;
+    if(cur_stat_item->max != ERROR_TEMPERATURE){
+      if(temp==ERROR_TEMPERATURE)temp=cur_stat_item->max;
+      if(cur_stat_item->max > temp)temp=cur_stat_item->max;
+    }
+  }
+  return temp;
+}
+// анализируем собранные данные за последние 12 месяцев по заданному
+// устройству и выбираем минимальную температуру:
+int get_min_temp_last_12month(TEMPERATURE_device *dev)
+{
+  TEMPERATURE_stat_item *cur_stat_item;
+  int x;
+  int temp=ERROR_TEMPERATURE;
+  // за год:
+  for(x=0;x<12;x++){
+    cur_stat_item=dev->stat_year+x;
+    if(cur_stat_item->min != ERROR_TEMPERATURE){
+      if(temp==ERROR_TEMPERATURE)temp=cur_stat_item->min;
+      if(cur_stat_item->min < temp)temp=cur_stat_item->min;
+    }
+  }
+  return temp;
+}
+// анализируем собранные данные за последние 12 месяцев по заданному
+// устройству и выбираем максимальную температуру:
+int get_max_temp_last_12month(TEMPERATURE_device *dev)
+{
+  TEMPERATURE_stat_item *cur_stat_item;
+  int x;
+  int temp=ERROR_TEMPERATURE;
+  // за год:
+  for(x=0;x<12;x++){
+    cur_stat_item=dev->stat_year+x;
+    if(cur_stat_item->max != ERROR_TEMPERATURE){
+      if(temp==ERROR_TEMPERATURE)temp=cur_stat_item->max;
+      if(cur_stat_item->max > temp)temp=cur_stat_item->max;
+    }
+  }
+  return temp;
+}
+
+// сохраняем статистику на внутренний flash-накопитель:
 int temperature_stat_save_to_flash(TEMPERATURE_data *td)
 {
   esp_vfs_spiffs_conf_t conf;
