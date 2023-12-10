@@ -95,6 +95,10 @@ int get_min_temp_last_12month(TEMPERATURE_device *dev);
 // анализируем собранные данные за последние 12 месяцев по заданному
 // устройству и выбираем максимальную температуру:
 int get_max_temp_last_12month(TEMPERATURE_device *dev);
+// очистка статистики за месяц
+bool clear_month_days_stat(TEMPERATURE_device *dev);
+// очистка статистики за день
+bool clear_day_hours_stat(TEMPERATURE_device *dev);
 //---------------------------------------------------------------------
 
 #endif /* TEMPERATURE_H_ */

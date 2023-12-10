@@ -292,7 +292,7 @@ char* create_index(TEMPERATURE_data *td)
   ADDSTR(buf,&buf_size,"<!DOCTYPE html> <html lang=\"ru\">\
   <head>\
   <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />\
-  <title>Датчики в домике</title>  \
+  <title>Датчики в моём доме</title>  \
   \
 <style> \
 td { \

@@ -19,7 +19,6 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
   struct tm timeinfo = { 0 };
   TEMPERATURE_stat_item *cur_stat_item;
   TEMPERATURE_device *dev;
-  int x;
   int calc_min;
   int calc_max;
 
@@ -37,6 +36,25 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
   for (int i = 0; i < td->num_devices; i++)
   {
     dev = td->temp_devices+i;
+
+    // проверяем, был ли переход на новый день. Если да - надо подчистить часовую статистику от прошлого дня:
+    if(old_day!=-1 && old_day!=timeinfo.tm_mday){
+      if (clear_day_hours_stat(dev)==false){
+        ESP_LOGE(TAG,"clear_day_hours_stat()");
+        return -1;
+      }
+      // проверяем, был ли при этом переход на новый месяц. 
+      // Если да - надо подчистить статистику от прошлого месяца:
+      if (timeinfo.tm_mday == 1){
+        // с прошлого запуска изменился месяц, проверяем - нужно ли перетерать последние дни:
+        ESP_LOGI(TAG,"start new month - try clear end days stat");
+        if (clear_month_days_stat(dev)==false){
+          ESP_LOGE(TAG,"clear_month_days_stat()");
+          return -1;
+        }
+      }
+    }
+
     // приводим к более экономной по памяти форме:
     int cur_temp=(int)(dev->temp*1000);
 
@@ -78,21 +96,6 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
     calc_max=get_max_temp_last_12month(dev);
     dev->stat_year_min_temp=calc_min;
     dev->stat_year_max_temp=calc_max;
-
-    // проверяем, был ли переход на новый месяц. Если да - надо подчистить оставшиеся дни у статистики
-    // текущего датчика, если есть
-    // т.е. если в прошедшем месяце, например, было 29 дней, а позапрошлом - 31, то показания 30 и 31 не
-    // перезатёрлись в прошлом месяце и позапрошломесячные показания двух дней будут влиять на статистику
-    if(old_day!=timeinfo.tm_mday && timeinfo.tm_mday == 1){
-      // с прошлого запуска изменился месяц, проверяем - нужно ли перетерать последние дни:
-      ESP_LOGI(TAG,"start new month - try clear end days stat");
-      for(x=old_day;x<31;x++){
-        cur_stat_item=dev->stat_month+x-1; // -1 т.к. дни начинаются не с 0, а с 1 (в отличч от часов и месяцев - см. структуру tm в /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h)
-        ESP_LOGD(TAG,"clear data at %d day (index=%d)",x,x-1);
-        cur_stat_item->max = ERROR_TEMPERATURE;
-        cur_stat_item->min = ERROR_TEMPERATURE;
-      }
-    }
   }
   // проверяем, нужно ли сохранить данные на флешку:
   if(old_hour!=timeinfo.tm_hour){
@@ -108,6 +111,36 @@ int temperature_update_device_stat(TEMPERATURE_data *td)
   old_hour=timeinfo.tm_hour;
   old_day=timeinfo.tm_mday;
   return 0;
+}
+
+// очистка статистики за месяц
+bool clear_month_days_stat(TEMPERATURE_device *dev)
+{
+  TEMPERATURE_stat_item *cur_stat_item;
+  // т.к. сменился месяц, то очищаем статистику по дням, чтобы она не влияла на расчёт в течении месяца 
+  for(int x=0;x<31;x++){
+    cur_stat_item=dev->stat_month+x;
+    ESP_LOGD(TAG,"clear data at %d day (index=%d)",x+1,x);
+    cur_stat_item->max = ERROR_TEMPERATURE;
+    cur_stat_item->min = ERROR_TEMPERATURE;
+  }
+  return true;
+}
+
+// очистка статистики за день
+bool clear_day_hours_stat(TEMPERATURE_device *dev)
+{
+  TEMPERATURE_stat_item *cur_stat_item;
+  // т.к. сменился день, то очищаем статистику по часам, чтобы она не влияла на расчёт в течении дня
+  // (т.е. в статистике часовых температур за текущие сутки - будем видеть показания только текущих
+  // суток, без остатков от прошлых суток):
+  for(int x=0;x<24;x++){
+    cur_stat_item=dev->stat_day+x;
+    ESP_LOGD(TAG,"clear data at %d hour",x);
+    cur_stat_item->max = ERROR_TEMPERATURE;
+    cur_stat_item->min = ERROR_TEMPERATURE;
+  }
+  return true;
 }
 
 // анализируем собранные данные за последние 24 часа по заданному
@@ -621,59 +654,57 @@ int strcicmpL(char const *a, char const *b) {
 // прописываем текстовые имена датчикам:
 void add_alias_to_temp_devices(TEMPERATURE_data *td)
 {
+  // ======================== !!!!! Имя не может быть больше 17 символов (включая конечный ноль) !!!!!===============
   for(int i=0;i<td->num_devices;i++)
   {
-    //if(strcicmpL((td->temp_devices+i)->device_addr,"28A83456B513CF9")==0)
-    if(strcicmpL((td->temp_devices+i)->device_addr,"f93c01b55634a828")==0)
+    ///////============  мой дом =======================
+    if(strcicmpL((td->temp_devices+i)->device_addr,"7d3c01b556705828")==0)
     {
-        //sprintf((td->temp_devices+i)->device_name,L"Окруж.воздух:");
-        sprintf((td->temp_devices+i)->device_name,   "Okruj.vozduh:   ");
+      ////////////////////////////////////////// 1234567890123456 //////
+      sprintf((td->temp_devices+i)->device_name,"Vozduh v dome");
     }
-    //else if(strcicmpL((td->temp_devices+i)->device_addr,"28813EF41E19124")==0)
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"2401191ef43e8128")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"25011936a3bb7628")==0)
     {
-        //sprintf((td->temp_devices+i)->device_name,L"Кухня,под утепл:");
-        sprintf((td->temp_devices+i)->device_name,   "Kuhnya, pesok:  ");
+      ////////////////////////////////////////// 1234567890123456 //////
+      sprintf((td->temp_devices+i)->device_name,"Kanaliz.sosedi");
     }
-    //else if(strcicmpL((td->temp_devices+i)->device_addr,"2878DDDC1E19138")==0)
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"3801191edcdd7828")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"303c01b556c27928")==0)
     {
-        //sprintf((td->temp_devices+i)->device_name,L"Кухня, стяжка:  ");
-        sprintf((td->temp_devices+i)->device_name,   "Kuhnya, bet pol:");
+      ////////////////////////////////////////// 1234567890123456 //////
+      sprintf((td->temp_devices+i)->device_name,"sever glina");
     }
-    // TODO
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"28E04079A2193E0")==0)
+
+    //===============
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"c400000002dd8728")==0)
     {
-        //sprintf((td->temp_devices+i)->device_name,L"Юж комн, песок: ");
-        sprintf((td->temp_devices+i)->device_name,   "Yujn komn,pesok:");
+      // датчик между 3 и 4 столбом, внутри дома (~300 мм от ленты) на глубине -1100 мм от проектного нуля (верха ленты, пола) - лежит на грунте (снизу глина, сверху скала отсыпки - меряет температуру грунта под остыпкой)
+      ////////////////////////////////////////// 1234567890123456 //////
+      sprintf((td->temp_devices+i)->device_name,"yug dom glina");
     }
-    //else if(strcicmpL((td->temp_devices+i)->device_addr,"2846779A21326")==0)
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"260301a279670428")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"d000000003040328")==0)
     {
-        //sprintf((td->temp_devices+i)->device_name,L"Кухня, песок:   ");
-        sprintf((td->temp_devices+i)->device_name,   "Kuhna, pesok:   ");
+      // Датчик между 3 и 4 столбом, снаружи дома (~300 мм от ленты) на глубине -1100 мм от проектного нуля (верха ленты, пола) - лежит на грунте (снизу глина, сверху скала отсыпки - меряет температуру грунта под остыпкой)
+      ////////////////////////////////////////// 1234567890123456 //////
+      sprintf((td->temp_devices+i)->device_name,"yug vne dom glin");
     }
-    // TODO
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"284FEF79A2135E")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"7b011936b426b928")==0)
     {
-        //sprintf((td->temp_devices+i)->device_name,L"Сев комн, песок:");
-        sprintf((td->temp_devices+i)->device_name,   "Sev komn, pesok:");
+      // cредний ряд столбов, югозападный столб (3), 1 м глубина ниже уровня земли или 1,5 м вниз от уровня вершины столба
+      ////////////////////////////////////////// 1234567890123456 //////
+      sprintf((td->temp_devices+i)->device_name,"yug st -1.5m otm");
     }
-    // TODO
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"28C34279A216394")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"8d011936a3b05428")==0)
     {
-        //sprintf((td->temp_devices+i)->device_name,L"Сев ком,под утпл:");
-        sprintf((td->temp_devices+i)->device_name,   "Sev kom,pesok:  ");
+      // средний ряд столбов, югозападный столб (3), 3 м глубина ниже уровня земли или 3,5 м вниз от уровня вершины столба
+      ////////////////////////////////////////// 1234567890123456 //////
+      sprintf((td->temp_devices+i)->device_name,"yug st -3.5m otm");
     }
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"a63c01b556edfc28")==0)
+    else if(strcicmpL((td->temp_devices+i)->device_addr,"b23c01b556a2d328")==0)
     {
-        //sprintf((td->temp_devices+i)->device_name,L"Улица:");
-        sprintf((td->temp_devices+i)->device_name,   "Ulica:          ");
+      // судя по всему - датчик в ленте по центру южной стороны, но это не точно
+      ////////////////////////////////////////// 1234567890123456 //////
+      sprintf((td->temp_devices+i)->device_name,"yug,centr,lenta");
     }
-    else if(strcicmpL((td->temp_devices+i)->device_addr,"7d3c01b556705828")==0)
-    {
-      // датчик припаянный к распред-плате тестового терминала:
-      sprintf((td->temp_devices+i)->device_name,     "test name:      ");
-    }
+
   }
 }
